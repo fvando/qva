@@ -1,0 +1,26 @@
+# Question Vision Assistant (TASK-001)
+#
+# O serviço LLM local corre NOUTRO container/compose. Este ficheiro só sobe o
+# backend do QVA e assume que o LLM é alcançável via `host.docker.internal` ou
+# por uma rede Docker partilhada (ver `.env`).
+#
+# NOTA (Docker Desktop / Windows): o acesso a uma webcam USB a partir de um
+# container Linux no Docker Desktop NÃO é suportado. Para o MVP com webcam USB,
+# correr o backend diretamente no host (`python -m app`). O container serve para
+# o modo `CAMERA_TYPE=file` e para a fase RTSP.
+
+services:
+  qva:
+    build: .
+    container_name: qva-backend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT:-8080}:8080"
+    # Para partilhar a rede do compose do LLM, descomentar e ajustar:
+    # networks:
+    #   - llm-net
+
+# networks:
+#   llm-net:
+#     external: true

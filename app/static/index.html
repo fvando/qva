@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Question Vision Assistant</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Question Vision Assistant</h1>
+      <p class="hint">Interface mínima (TASK-001). A UI real chega na TASK-011.</p>
+
+      <section id="status">
+        <h2>Status</h2>
+        <ul>
+          <li><span class="dot" data-service="camera"></span> Camera</li>
+          <li><span class="dot" data-service="llm"></span> LLM</li>
+          <li><span class="dot" data-service="server"></span> Server</li>
+        </ul>
+      </section>
+
+      <button id="capture" disabled>Capturar nova questão</button>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

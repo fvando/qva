@@ -1,0 +1,22 @@
+# Ambiente
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local-first: nunca versionar imagens capturadas
+captures/
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+!tests/fixtures/**
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

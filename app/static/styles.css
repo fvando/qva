@@ -1,0 +1,47 @@
+/* Question Vision Assistant — estilos mínimos (TASK-001). UI real: TASK-011. */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+body {
+  margin: 0;
+  padding: 1.5rem;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+h1 {
+  font-size: 1.4rem;
+}
+.hint {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+#status ul {
+  list-style: none;
+  padding: 0;
+}
+#status li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+.dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+.dot[data-state="ok"] {
+  background: #16a34a;
+}
+.dot[data-state="down"] {
+  background: #dc2626;
+}
+button {
+  width: 100%;
+  padding: 0.9rem;
+  font-size: 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+}
