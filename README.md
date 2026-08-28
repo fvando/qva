@@ -114,7 +114,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-012 | FileCamera para testes | ✅ concluída |
 | TASK-013 | Métricas de latência | ✅ concluída |
 | TASK-014 | Testes | ✅ concluída |
-| TASK-015 | ChangeDetector | pendente |
+| TASK-015 | ChangeDetector | ✅ concluída |
 | TASK-016 | Captura automática opcional | pendente |
 | TASK-017 | RTSPCamera | pendente |
 

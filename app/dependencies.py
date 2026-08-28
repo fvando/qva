@@ -20,6 +20,7 @@ from app.history import HistoryStore
 from app.services.captures import CaptureRegistry
 from app.services.metrics import MetricsCollector
 from app.services.pipeline import QuestionPipeline
+from app.vision.change_detector import ChangeDetector
 from app.vision.extractor import QuestionExtractor
 from app.vision.processor import ImageProcessor
 from app.websocket_manager import WebSocketManager
@@ -58,6 +59,11 @@ def get_history() -> HistoryStore:
 @lru_cache
 def get_image_processor() -> ImageProcessor:
     return ImageProcessor()
+
+
+@lru_cache
+def get_change_detector() -> ChangeDetector:
+    return ChangeDetector(threshold=get_settings().change_threshold)
 
 
 @lru_cache
