@@ -38,6 +38,20 @@ h1 {
 .dot[data-state="down"] {
   background: #dc2626;
 }
+#preview-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #111;
+  border-radius: 0.5rem;
+}
+#preview label {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+}
 button {
   width: 100%;
   padding: 0.9rem;

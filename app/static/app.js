@@ -7,6 +7,28 @@
     if (el) el.dataset.state = state;
   }
 
+  // -- Preview -------------------------------------------------------------
+  const img = document.getElementById("preview-img");
+  const live = document.getElementById("live");
+  let refreshTimer = null;
+
+  function showSnapshot() {
+    img.src = "/api/camera/frame?t=" + Date.now();
+  }
+  function stopLive() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  live.addEventListener("change", function () {
+    if (live.checked) {
+      img.src = "/api/camera/stream";
+    } else {
+      stopLive();
+      showSnapshot();
+    }
+  });
+  showSnapshot();
+
   try {
     const res = await fetch("/health");
     const body = await res.json();

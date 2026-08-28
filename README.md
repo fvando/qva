@@ -87,7 +87,7 @@ Ver [`.env.example`](.env.example). Destaques:
 |---|---|---|
 | TASK-001 | Estrutura do projeto e configuração | ✅ concluída |
 | TASK-002 | USBCamera | ✅ concluída |
-| TASK-003 | Preview da webcam | pendente |
+| TASK-003 | Preview da webcam | ✅ concluída |
 | TASK-004 | Captura manual | pendente |
 | TASK-005 | ImageProcessor | pendente |
 | TASK-006 | Integração HTTP com o LLM local | pendente |
