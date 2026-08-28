@@ -38,4 +38,29 @@
   } catch (err) {
     setDot("server", "down");
   }
+
+  // -- Captura ------------------------------------------------------------
+  const btn = document.getElementById("capture");
+  btn.disabled = false;
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    btn.textContent = "A processar…";
+    try {
+      const r = await fetch("/api/capture", { method: "POST" });
+      const { capture_id } = await r.json();
+      // Polling simples até o WebSocket entrar (TASK-010).
+      let done = false;
+      while (!done) {
+        await new Promise((res) => setTimeout(res, 500));
+        const s = await (await fetch("/api/capture/" + capture_id)).json();
+        if (s.status === "completed" || s.status === "error") {
+          done = true;
+          console.log("resultado:", s);
+        }
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Capturar nova questão";
+    }
+  });
 })();

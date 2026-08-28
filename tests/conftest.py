@@ -5,8 +5,24 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.camera.base import CameraSource
+from app import dependencies
 from app.dependencies import get_camera
 from app.main import create_app
+
+
+@pytest.fixture(autouse=True)
+def _reset_singletons():
+    """Limpa os singletons `@lru_cache` entre testes (registry de capturas,
+    câmera, etc.) para não haver contaminação de estado."""
+    for fn in (
+        dependencies.get_camera,
+        dependencies.get_capture_registry,
+        dependencies.get_websocket_manager,
+        dependencies.get_image_processor,
+        dependencies.get_question_extractor,
+    ):
+        fn.cache_clear()
+    yield
 
 
 class FakeCamera(CameraSource):

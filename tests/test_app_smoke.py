@@ -30,5 +30,7 @@ def test_camera_status(client):
     assert body["available"] is True
 
 
-def test_capture_not_yet_implemented(client):
-    assert client.post("/api/capture").status_code == 501
+def test_capture_accepts_and_returns_id(client):
+    r = client.post("/api/capture")
+    assert r.status_code == 202
+    assert r.json()["status"] == "processing"
