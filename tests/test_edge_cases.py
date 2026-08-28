@@ -48,44 +48,44 @@ def test_tesseract_ocr_missing_dependency(monkeypatch):
         TesseractOCR().image_to_text(np.zeros((4, 4, 3), dtype=np.uint8))
 
 
-def test_usb_close_releases_open_capture(monkeypatch):
-    from app.camera.usb import USBCamera
-
-    released = {"v": False}
-
+def _bright_cap(events=None):
     class FakeCap:
         def isOpened(self):
             return True
 
         def read(self):
-            return True, np.zeros((2, 2, 3), dtype=np.uint8)
+            return True, np.full((4, 4, 3), 200, dtype=np.uint8)
+
+        def set(self, *a):
+            pass
 
         def release(self):
-            released["v"] = True
+            if events is not None:
+                events.append("release")
 
-    monkeypatch.setattr("app.camera.usb.cv2.VideoCapture", lambda dev: FakeCap())
+    return FakeCap()
+
+
+def test_usb_close_releases_open_capture(monkeypatch):
+    from app.camera.usb import USBCamera
+
+    events = []
+    monkeypatch.setattr(
+        "app.camera.usb.cv2.VideoCapture", lambda dev, backend=None: _bright_cap(events)
+    )
     cam = USBCamera("0")
     cam.open()
     cam.close()
-    assert released["v"] is True
+    assert "release" in events
 
 
 def test_context_manager_opens_and_closes(monkeypatch):
     from app.camera.usb import USBCamera
 
     events = []
-
-    class FakeCap:
-        def isOpened(self):
-            return True
-
-        def read(self):
-            return True, np.zeros((2, 2, 3), dtype=np.uint8)
-
-        def release(self):
-            events.append("release")
-
-    monkeypatch.setattr("app.camera.usb.cv2.VideoCapture", lambda dev: FakeCap())
+    monkeypatch.setattr(
+        "app.camera.usb.cv2.VideoCapture", lambda dev, backend=None: _bright_cap(events)
+    )
     with USBCamera("0") as cam:
         cam.capture()
     assert "release" in events
