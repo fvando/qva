@@ -89,7 +89,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-002 | USBCamera | ✅ concluída |
 | TASK-003 | Preview da webcam | ✅ concluída |
 | TASK-004 | Captura manual | ✅ concluída |
-| TASK-005 | ImageProcessor | pendente |
+| TASK-005 | ImageProcessor | ✅ concluída |
 | TASK-006 | Integração HTTP com o LLM local | pendente |
 | TASK-007 | QuestionExtractor | pendente |
 | TASK-008 | QuestionSolver | pendente |

@@ -36,7 +36,17 @@ class FakeCamera(CameraSource):
         self.opened = True
 
     def capture(self) -> np.ndarray:
-        return np.zeros((8, 8, 3), dtype=np.uint8)
+        # Frame nítido e bem iluminado, com detalhe suficiente para passar as
+        # verificações de qualidade do ImageProcessor (TASK-005).
+        import cv2
+
+        img = np.full((480, 640, 3), 235, dtype=np.uint8)
+        for y in range(40, 440, 30):
+            cv2.putText(
+                img, "linha " + str(y), (30, y),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2,
+            )
+        return img
 
     def close(self) -> None:
         self.opened = False

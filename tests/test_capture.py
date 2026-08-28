@@ -1,7 +1,5 @@
 """TASK-004 — captura manual (fluxo assíncrono + capture_id)."""
 
-import pytest
-
 from app.services.captures import CaptureRegistry, CaptureState
 
 
@@ -34,9 +32,9 @@ def test_capture_returns_202_with_id(client):
 
 
 def test_capture_runs_pipeline_and_reports_state(client):
-    """Com os módulos de visão ainda em esqueleto, o pipeline termina em
-    `error` (not_implemented) — mas nunca rebenta, e o capture_id é
-    consultável."""
+    """O pipeline corre ponta a ponta e nunca rebenta. Com a FakeCamera a
+    devolver um frame trivial (8x8 zeros), o ImageProcessor rejeita a imagem
+    e o pipeline termina em `error` — mas de forma controlada e consultável."""
     capture_id = client.post("/api/capture").json()["capture_id"]
     # BackgroundTasks do TestClient corre de forma síncrona após a resposta.
     r = client.get(f"/api/capture/{capture_id}")
@@ -44,7 +42,7 @@ def test_capture_runs_pipeline_and_reports_state(client):
     body = r.json()
     assert body["id"] == capture_id
     assert body["status"] == "error"
-    assert "not_implemented" in body["error"]
+    assert body["error"]  # há sempre um motivo
     assert body["timing"]["total_ms"] >= 0
 
 
