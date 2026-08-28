@@ -108,7 +108,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-010 | WebSocket | ✅ concluída |
 | TASK-011 | Interface mobile | ✅ concluída |
 | TASK-012 | FileCamera para testes | ✅ concluída |
-| TASK-013 | Métricas de latência | pendente |
+| TASK-013 | Métricas de latência | ✅ concluída |
 | TASK-014 | Testes | pendente |
 | TASK-015 | ChangeDetector | pendente |
 | TASK-016 | Captura automática opcional | pendente |

@@ -28,6 +28,7 @@ from contextlib import contextmanager
 from app.camera.base import CameraError, CameraSource
 from app.models.result import ConsolidatedResponse, Timing
 from app.services.captures import CaptureRegistry, CaptureState
+from app.services.metrics import MetricsCollector
 from app.vision.extractor import QuestionExtractionError, QuestionExtractor
 from app.vision.processor import ImageProcessor, ImageQualityError
 from app.llm.solver import QuestionSolveError, QuestionSolver
@@ -45,6 +46,7 @@ class QuestionPipeline:
         solver: QuestionSolver,
         registry: CaptureRegistry,
         websocket_manager: WebSocketManager | None = None,
+        metrics: MetricsCollector | None = None,
     ) -> None:
         self._camera = camera
         self._image_processor = image_processor
@@ -52,6 +54,7 @@ class QuestionPipeline:
         self._solver = solver
         self._registry = registry
         self._ws = websocket_manager
+        self._metrics = metrics
 
     # -- eventos ---------------------------------------------------------
     async def _emit(self, event: str, data: dict | None = None) -> None:
@@ -119,6 +122,8 @@ class QuestionPipeline:
                 timing=timing,
             )
             self._registry.complete(capture_id, response)
+            if self._metrics is not None:
+                self._metrics.record(timing, ok=True)
             logger.info("ANSWER_READY", extra={**log_extra, "latency_ms": round(timing.total_ms, 1)})
             await self._emit(
                 "answer_ready",
@@ -137,6 +142,8 @@ class QuestionPipeline:
                 id=capture_id, status="error", timing=timing, error=reason
             )
             self._registry.fail(capture_id, reason)
+            if self._metrics is not None:
+                self._metrics.record(timing, ok=False)
             await self._emit("error", {"capture_id": capture_id, "reason": reason})
             return response
 

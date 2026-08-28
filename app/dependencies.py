@@ -17,6 +17,7 @@ from app.llm.base import LLMClient
 from app.llm.http_client import HttpLLMClient
 from app.llm.solver import QuestionSolver
 from app.services.captures import CaptureRegistry
+from app.services.metrics import MetricsCollector
 from app.services.pipeline import QuestionPipeline
 from app.vision.extractor import QuestionExtractor
 from app.vision.processor import ImageProcessor
@@ -41,6 +42,11 @@ def get_capture_registry() -> CaptureRegistry:
 @lru_cache
 def get_websocket_manager() -> WebSocketManager:
     return WebSocketManager()
+
+
+@lru_cache
+def get_metrics() -> MetricsCollector:
+    return MetricsCollector()
 
 
 @lru_cache
@@ -71,6 +77,7 @@ def get_pipeline(
     solver: QuestionSolver = Depends(get_solver),
     registry: CaptureRegistry = Depends(get_capture_registry),
     ws: WebSocketManager = Depends(get_websocket_manager),
+    metrics: MetricsCollector = Depends(get_metrics),
 ) -> QuestionPipeline:
     return QuestionPipeline(
         camera=camera,
@@ -79,4 +86,5 @@ def get_pipeline(
         solver=solver,
         registry=registry,
         websocket_manager=ws,
+        metrics=metrics,
     )

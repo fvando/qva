@@ -21,6 +21,7 @@ def _reset_singletons():
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
         dependencies.get_llm_client,
+        dependencies.get_metrics,
     ):
         fn.cache_clear()
     yield
