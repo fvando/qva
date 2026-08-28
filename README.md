@@ -93,7 +93,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-006 | Integração HTTP com o LLM local | ✅ concluída |
 | TASK-007 | QuestionExtractor | ✅ concluída |
 | TASK-008 | QuestionSolver | ✅ concluída |
-| TASK-009 | QuestionPipeline | pendente |
+| TASK-009 | QuestionPipeline | ✅ concluída |
 | TASK-010 | WebSocket | pendente |
 | TASK-011 | Interface mobile | pendente |
 | TASK-012 | FileCamera para testes | pendente |

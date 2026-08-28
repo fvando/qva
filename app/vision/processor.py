@@ -6,7 +6,7 @@ perspetiva (warp para retângulo frontal) → deskew fino → melhora contraste
 
 As operações de OpenCV são síncronas e pesadas; quem chama (`QuestionPipeline`)
 deve executá-las via `asyncio.to_thread`. `process()` é `async` só para manter
-o contrato do pipeline — internamente delega para `_process_sync`.
+o contrato do pipeline — internamente delega para `process_sync`.
 """
 
 from __future__ import annotations
@@ -233,9 +233,11 @@ class ImageProcessor:
         self._max_brightness = max_brightness
 
     async def process(self, frame: np.ndarray) -> ProcessedImage:
-        return self._process_sync(frame)
+        """Versão async por conveniência. O pipeline usa `process_sync` dentro
+        de `asyncio.to_thread` para não bloquear o event loop."""
+        return self.process_sync(frame)
 
-    def _process_sync(self, frame: np.ndarray) -> ProcessedImage:
+    def process_sync(self, frame: np.ndarray) -> ProcessedImage:
         if frame is None or getattr(frame, "size", 0) == 0:
             raise ImageQualityError("empty_frame")
 

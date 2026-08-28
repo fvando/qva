@@ -1,18 +1,21 @@
-"""`QuestionPipeline` — orquestração central (TASK-004; completado em TASK-009).
+"""`QuestionPipeline` — orquestração central (TASK-009).
 
-Concentra todo o fluxo. Nenhuma lógica de negócio deve viver nos endpoints:
+Concentra todo o fluxo. Nenhuma lógica de negócio vive nos endpoints:
 
     frame     = camera.capture()
-    processed = await image_processor.process(frame)
-    question  = await question_extractor.extract(processed)
-    result    = await solver.solve(question)
-    await websocket_manager.broadcast(result)
-    return result
+    processed = image_processor.process(frame)
+    question  = extractor.extract(processed)
+    result    = solver.solve(question)
+    websocket_manager.broadcast(...)
+    return ConsolidatedResponse(...)
 
-Nesta task o fluxo já existe e emite eventos/estados; os passos de visão e LLM
-ainda são esqueletos (TASK-005/007/008), por isso o pipeline apanha
-`NotImplementedError` e devolve uma resposta de erro em vez de rebentar — assim
-`POST /api/capture` pode ser testado ponta a ponta desde já.
+Garantias:
+  - As operações pesadas de OpenCV correm em `asyncio.to_thread` (não bloqueiam
+    o event loop do FastAPI).
+  - Cada passo é instrumentado com `time.perf_counter()` -> `Timing`.
+  - Estados (`CaptureState`) e eventos WebSocket são emitidos em cada transição.
+  - O pipeline **nunca** propaga exceção: qualquer falha vira uma
+    `ConsolidatedResponse(status="error")` com um motivo estável.
 """
 
 from __future__ import annotations
@@ -20,14 +23,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from contextlib import contextmanager
 
 from app.camera.base import CameraError, CameraSource
-from app.llm.solver import QuestionSolveError, QuestionSolver
-from app.vision.extractor import QuestionExtractionError
 from app.models.result import ConsolidatedResponse, Timing
 from app.services.captures import CaptureRegistry, CaptureState
-from app.vision.extractor import QuestionExtractor
+from app.vision.extractor import QuestionExtractionError, QuestionExtractor
 from app.vision.processor import ImageProcessor, ImageQualityError
+from app.llm.solver import QuestionSolveError, QuestionSolver
 from app.websocket_manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -50,48 +53,64 @@ class QuestionPipeline:
         self._registry = registry
         self._ws = websocket_manager
 
+    # -- eventos ---------------------------------------------------------
     async def _emit(self, event: str, data: dict | None = None) -> None:
-        if self._ws is not None:
-            try:
-                await self._ws.broadcast(event, data or {})
-            except NotImplementedError:
-                pass  # WebSocketManager chega na TASK-010
+        if self._ws is None:
+            return
+        try:
+            await self._ws.broadcast(event, data or {})
+        except NotImplementedError:
+            pass  # WebSocketManager completo chega na TASK-010
 
+    # -- fluxo principal ------------------------------------------------
     async def process_capture(self, capture_id: str) -> ConsolidatedResponse:
-        """Executa o pipeline para uma captura já registada."""
-        t0 = time.perf_counter()
+        """Executa o pipeline para uma captura já registada no `CaptureRegistry`."""
         timing = Timing()
+        overall = time.perf_counter()
+        log_extra = {"capture_id": capture_id, "request_id": capture_id}
+
+        logger.info("CAPTURE_STARTED", extra=log_extra)
         await self._emit("capture_started", {"capture_id": capture_id})
 
         try:
-            # 1. Captura ------------------------------------------------------
+            # 1. Captura do frame -----------------------------------------
             self._registry.set_state(capture_id, CaptureState.CAPTURING)
-            t = time.perf_counter()
-            frame = await asyncio.to_thread(self._capture_frame)
-            timing.capture_ms = (time.perf_counter() - t) * 1000
+            with _step(timing, "capture_ms"):
+                frame = await asyncio.to_thread(self._capture_frame)
+            logger.info("CAPTURE_COMPLETED", extra=log_extra)
 
-            # 2. Processamento de imagem -----------------------------------
+            # 2. Processamento de imagem (OpenCV -> thread) -------------
             self._registry.set_state(capture_id, CaptureState.PROCESSING_IMAGE)
-            t = time.perf_counter()
-            processed = await self._image_processor.process(frame)
-            timing.image_processing_ms = (time.perf_counter() - t) * 1000
-
-            # 3. Extração da questão -------------------------------------
-            self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
-            t = time.perf_counter()
-            question = await self._extractor.extract(processed)
-            timing.question_extraction_ms = (time.perf_counter() - t) * 1000
-            await self._emit(
-                "question_detected", {"capture_id": capture_id, "question": question.model_dump()}
+            with _step(timing, "image_processing_ms"):
+                processed = await asyncio.to_thread(
+                    self._image_processor.process_sync, frame
+                )
+            logger.info(
+                "IMAGE_PROCESSED",
+                extra={**log_extra, **processed.metrics(), "screen": processed.screen_detected},
             )
 
-            # 4. Resolução ------------------------------------------------
-            self._registry.set_state(capture_id, CaptureState.SOLVING)
-            t = time.perf_counter()
-            result = await self._solver.solve(question)
-            timing.llm_ms = (time.perf_counter() - t) * 1000
+            # 3. Extração da questão -----------------------------------
+            self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
+            with _step(timing, "question_extraction_ms"):
+                question = await self._extractor.extract(processed)
+            logger.info(
+                "QUESTION_EXTRACTED",
+                extra={**log_extra, "type": question.type.value},
+            )
+            await self._emit(
+                "question_detected",
+                {"capture_id": capture_id, "question": question.model_dump(mode="json")},
+            )
 
-            timing.total_ms = (time.perf_counter() - t0) * 1000
+            # 4. Resolução -------------------------------------------
+            self._registry.set_state(capture_id, CaptureState.SOLVING)
+            logger.info("LLM_REQUEST_STARTED", extra=log_extra)
+            with _step(timing, "llm_ms"):
+                result = await self._solver.solve(question)
+            logger.info("LLM_REQUEST_COMPLETED", extra=log_extra)
+
+            timing.total_ms = (time.perf_counter() - overall) * 1000
             response = ConsolidatedResponse(
                 id=capture_id,
                 status="completed",
@@ -100,14 +119,19 @@ class QuestionPipeline:
                 timing=timing,
             )
             self._registry.complete(capture_id, response)
-            await self._emit("answer_ready", {"capture_id": capture_id, "response": response.model_dump()})
+            logger.info("ANSWER_READY", extra={**log_extra, "latency_ms": round(timing.total_ms, 1)})
+            await self._emit(
+                "answer_ready",
+                {"capture_id": capture_id, "response": response.model_dump(mode="json")},
+            )
             return response
 
         except Exception as exc:  # noqa: BLE001 - o pipeline nunca deve rebentar
-            timing.total_ms = (time.perf_counter() - t0) * 1000
+            timing.total_ms = (time.perf_counter() - overall) * 1000
             reason = _error_reason(exc)
             logger.warning(
-                "PIPELINE_ERROR", extra={"capture_id": capture_id, "error_type": type(exc).__name__}
+                "PIPELINE_ERROR",
+                extra={**log_extra, "error_type": type(exc).__name__},
             )
             response = ConsolidatedResponse(
                 id=capture_id, status="error", timing=timing, error=reason
@@ -119,6 +143,16 @@ class QuestionPipeline:
     def _capture_frame(self):
         self._camera.open()
         return self._camera.capture()
+
+
+@contextmanager
+def _step(timing: Timing, field: str):
+    """Mede o tempo de um passo e escreve-o no campo indicado de `Timing`."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        setattr(timing, field, (time.perf_counter() - start) * 1000)
 
 
 def _error_reason(exc: BaseException) -> str:
