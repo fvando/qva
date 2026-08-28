@@ -13,6 +13,8 @@ from fastapi import Depends
 from app.camera.base import CameraSource
 from app.camera.factory import build_camera
 from app.config import get_settings
+from app.llm.base import LLMClient
+from app.llm.http_client import HttpLLMClient
 from app.llm.solver import QuestionSolver
 from app.services.captures import CaptureRegistry
 from app.services.pipeline import QuestionPipeline
@@ -51,10 +53,14 @@ def get_question_extractor() -> QuestionExtractor:
     return QuestionExtractor()
 
 
-def get_solver() -> QuestionSolver:
-    # O LLMClient concreto (HttpLLMClient) chega na TASK-006; até lá o solver
-    # recebe None e o pipeline trata o NotImplementedError.
-    return QuestionSolver(llm=None)  # type: ignore[arg-type]
+@lru_cache
+def get_llm_client() -> LLMClient:
+    """Cliente LLM único do processo (mantém o `httpx.AsyncClient` vivo)."""
+    return HttpLLMClient(get_settings())
+
+
+def get_solver(llm: LLMClient = Depends(get_llm_client)) -> QuestionSolver:
+    return QuestionSolver(llm=llm)
 
 
 def get_pipeline(

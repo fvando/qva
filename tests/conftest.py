@@ -5,8 +5,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.camera.base import CameraSource
+from app.llm.base import LLMClient, LLMRequest, LLMResponse
 from app import dependencies
-from app.dependencies import get_camera
+from app.dependencies import get_camera, get_llm_client
 from app.main import create_app
 
 
@@ -20,9 +21,26 @@ def _reset_singletons():
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
         dependencies.get_question_extractor,
+        dependencies.get_llm_client,
     ):
         fn.cache_clear()
     yield
+
+
+class FakeLLM(LLMClient):
+    """LLM de teste: devolve um texto fixo, sem rede."""
+
+    def __init__(self, text: str = '{"answer":"D"}', reachable: bool = True) -> None:
+        self._text = text
+        self._reachable = reachable
+        self.calls: list[LLMRequest] = []
+
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        self.calls.append(request)
+        return LLMResponse(text=self._text, model="fake", latency_ms=1.0)
+
+    async def health(self) -> bool:
+        return self._reachable
 
 
 class FakeCamera(CameraSource):
@@ -61,7 +79,13 @@ def fake_camera() -> FakeCamera:
 
 
 @pytest.fixture
-def client(fake_camera: FakeCamera) -> TestClient:
+def fake_llm() -> FakeLLM:
+    return FakeLLM()
+
+
+@pytest.fixture
+def client(fake_camera: FakeCamera, fake_llm: FakeLLM) -> TestClient:
     app = create_app()
     app.dependency_overrides[get_camera] = lambda: fake_camera
+    app.dependency_overrides[get_llm_client] = lambda: fake_llm
     return TestClient(app)

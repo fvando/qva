@@ -7,6 +7,7 @@ def test_health(client):
     body = r.json()
     assert body["status"] == "healthy"
     assert body["camera"] is True  # FakeCamera disponível
+    assert body["llm"] is True  # FakeLLM alcançável
 
 
 def test_health_reports_camera_down(client, fake_camera):
@@ -19,7 +20,7 @@ def test_llm_status_reports_config(client):
     assert r.status_code == 200
     body = r.json()
     assert "configured_url" in body
-    assert body["reachable"] is None  # TASK-006 liga a verificação real
+    assert body["reachable"] is True  # FakeLLM
 
 
 def test_camera_status(client):
