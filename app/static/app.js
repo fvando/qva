@@ -39,28 +39,33 @@
     setDot("server", "down");
   }
 
-  // -- Captura ------------------------------------------------------------
+  // -- WebSocket: recebe eventos do pipeline sem polling (TASK-010) -------
   const btn = document.getElementById("capture");
   btn.disabled = false;
-  btn.addEventListener("click", async function () {
-    btn.disabled = true;
-    btn.textContent = "A processar…";
-    try {
-      const r = await fetch("/api/capture", { method: "POST" });
-      const { capture_id } = await r.json();
-      // Polling simples até o WebSocket entrar (TASK-010).
-      let done = false;
-      while (!done) {
-        await new Promise((res) => setTimeout(res, 500));
-        const s = await (await fetch("/api/capture/" + capture_id)).json();
-        if (s.status === "completed" || s.status === "error") {
-          done = true;
-          console.log("resultado:", s);
-        }
+
+  function connectWS() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(proto + "//" + location.host + "/ws");
+    socket.onmessage = function (ev) {
+      const { event, data } = JSON.parse(ev.data);
+      console.log("evento:", event, data);
+      if (event === "capture_started") {
+        btn.disabled = true;
+        btn.textContent = "A processar…";
       }
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Capturar nova questão";
-    }
+      if (event === "answer_ready" || event === "error") {
+        btn.disabled = false;
+        btn.textContent = "Capturar nova questão";
+      }
+    };
+    socket.onclose = function () {
+      setTimeout(connectWS, 2000); // reconecta
+    };
+  }
+  connectWS();
+
+  btn.addEventListener("click", function () {
+    fetch("/api/capture", { method: "POST" });
+    // O resultado chega pelo WebSocket (answer_ready / error).
   });
 })();
