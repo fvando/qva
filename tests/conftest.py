@@ -22,6 +22,7 @@ def _reset_singletons():
         dependencies.get_image_processor,
         dependencies.get_llm_client,
         dependencies.get_metrics,
+        dependencies.get_history,
     ):
         fn.cache_clear()
     yield

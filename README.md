@@ -76,7 +76,11 @@ Para regenerar a fixture: `python tests/fixtures/make_fixture.py`.
 
 ```bash
 pytest
+pytest --cov=app --cov-report=term-missing   # com cobertura (~95%)
 ```
+
+Todos os testes correm sem webcam e sem serviço LLM — a câmera e o LLM são
+substituídos por fakes/mocks (`httpx.MockTransport`).
 
 ## Configuração
 
@@ -109,7 +113,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-011 | Interface mobile | ✅ concluída |
 | TASK-012 | FileCamera para testes | ✅ concluída |
 | TASK-013 | Métricas de latência | ✅ concluída |
-| TASK-014 | Testes | pendente |
+| TASK-014 | Testes | ✅ concluída |
 | TASK-015 | ChangeDetector | pendente |
 | TASK-016 | Captura automática opcional | pendente |
 | TASK-017 | RTSPCamera | pendente |

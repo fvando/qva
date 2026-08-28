@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import camera, capture, health, metrics, websocket
+from app.api import camera, capture, health, history, metrics, websocket
 from app.config import get_settings
 from app.dependencies import get_llm_client
 from app.llm.http_client import HttpLLMClient
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(camera.router)
     app.include_router(capture.router)
     app.include_router(metrics.router)
+    app.include_router(history.router)
     app.include_router(websocket.router)
 
     if _STATIC_DIR.is_dir():

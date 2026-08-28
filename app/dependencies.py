@@ -16,6 +16,7 @@ from app.config import get_settings
 from app.llm.base import LLMClient
 from app.llm.http_client import HttpLLMClient
 from app.llm.solver import QuestionSolver
+from app.history import HistoryStore
 from app.services.captures import CaptureRegistry
 from app.services.metrics import MetricsCollector
 from app.services.pipeline import QuestionPipeline
@@ -50,6 +51,11 @@ def get_metrics() -> MetricsCollector:
 
 
 @lru_cache
+def get_history() -> HistoryStore:
+    return HistoryStore(enabled=get_settings().store_history)
+
+
+@lru_cache
 def get_image_processor() -> ImageProcessor:
     return ImageProcessor()
 
@@ -78,6 +84,7 @@ def get_pipeline(
     registry: CaptureRegistry = Depends(get_capture_registry),
     ws: WebSocketManager = Depends(get_websocket_manager),
     metrics: MetricsCollector = Depends(get_metrics),
+    history: HistoryStore = Depends(get_history),
 ) -> QuestionPipeline:
     return QuestionPipeline(
         camera=camera,
@@ -87,4 +94,5 @@ def get_pipeline(
         registry=registry,
         websocket_manager=ws,
         metrics=metrics,
+        history=history,
     )

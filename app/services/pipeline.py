@@ -26,6 +26,7 @@ import time
 from contextlib import contextmanager
 
 from app.camera.base import CameraError, CameraSource
+from app.history import HistoryStore
 from app.models.result import ConsolidatedResponse, Timing
 from app.services.captures import CaptureRegistry, CaptureState
 from app.services.metrics import MetricsCollector
@@ -47,6 +48,7 @@ class QuestionPipeline:
         registry: CaptureRegistry,
         websocket_manager: WebSocketManager | None = None,
         metrics: MetricsCollector | None = None,
+        history: HistoryStore | None = None,
     ) -> None:
         self._camera = camera
         self._image_processor = image_processor
@@ -55,6 +57,7 @@ class QuestionPipeline:
         self._registry = registry
         self._ws = websocket_manager
         self._metrics = metrics
+        self._history = history
 
     # -- eventos ---------------------------------------------------------
     async def _emit(self, event: str, data: dict | None = None) -> None:
@@ -124,6 +127,8 @@ class QuestionPipeline:
             self._registry.complete(capture_id, response)
             if self._metrics is not None:
                 self._metrics.record(timing, ok=True)
+            if self._history is not None:
+                self._history.save(response)
             logger.info("ANSWER_READY", extra={**log_extra, "latency_ms": round(timing.total_ms, 1)})
             await self._emit(
                 "answer_ready",
