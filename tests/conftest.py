@@ -20,7 +20,6 @@ def _reset_singletons():
         dependencies.get_capture_registry,
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
-        dependencies.get_question_extractor,
         dependencies.get_llm_client,
     ):
         fn.cache_clear()

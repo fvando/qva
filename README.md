@@ -91,7 +91,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-004 | Captura manual | ✅ concluída |
 | TASK-005 | ImageProcessor | ✅ concluída |
 | TASK-006 | Integração HTTP com o LLM local | ✅ concluída |
-| TASK-007 | QuestionExtractor | pendente |
+| TASK-007 | QuestionExtractor | ✅ concluída |
 | TASK-008 | QuestionSolver | pendente |
 | TASK-009 | QuestionPipeline | pendente |
 | TASK-010 | WebSocket | pendente |

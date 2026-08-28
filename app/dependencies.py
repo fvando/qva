@@ -49,14 +49,15 @@ def get_image_processor() -> ImageProcessor:
 
 
 @lru_cache
-def get_question_extractor() -> QuestionExtractor:
-    return QuestionExtractor()
-
-
-@lru_cache
 def get_llm_client() -> LLMClient:
     """Cliente LLM único do processo (mantém o `httpx.AsyncClient` vivo)."""
     return HttpLLMClient(get_settings())
+
+
+def get_question_extractor(
+    llm: LLMClient = Depends(get_llm_client),
+) -> QuestionExtractor:
+    return QuestionExtractor(llm=llm, settings=get_settings())
 
 
 def get_solver(llm: LLMClient = Depends(get_llm_client)) -> QuestionSolver:

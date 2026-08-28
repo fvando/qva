@@ -8,6 +8,10 @@ opencv-python-headless==4.10.0.84
 numpy==2.2.1
 httpx==0.28.1
 
+# OCR opcional — só necessário no modo B (LLM_SUPPORTS_VISION=false).
+# Requer também o binário `tesseract` instalado no sistema.
+# pytesseract==0.3.13
+
 # Dev / testes
 pytest==8.3.4
 pytest-asyncio==0.25.0
