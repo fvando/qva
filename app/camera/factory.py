@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.camera.base import CameraSource
 from app.camera.file_camera import FileCamera
+from app.camera.rtsp import HTTPIPCamera, RTSPCamera
 from app.camera.usb import USBCamera
 from app.config import CameraType, Settings
 
@@ -17,7 +18,10 @@ def build_camera(settings: Settings) -> CameraSource:
         return USBCamera(device=settings.camera_device)
     if settings.camera_type is CameraType.FILE:
         return FileCamera(path=settings.test_image)
-    # rtsp / http chegam na fase 2 (TASK-017)
+    if settings.camera_type is CameraType.RTSP:
+        return RTSPCamera(url=settings.camera_url)
+    if settings.camera_type is CameraType.HTTP:
+        return HTTPIPCamera(url=settings.camera_url)
     raise NotImplementedError(
-        f"CAMERA_TYPE={settings.camera_type.value} ainda não suportado"
+        f"CAMERA_TYPE={settings.camera_type.value} não suportado"
     )

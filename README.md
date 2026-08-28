@@ -116,7 +116,6 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-014 | Testes | ✅ concluída |
 | TASK-015 | ChangeDetector | ✅ concluída |
 | TASK-016 | Captura automática opcional | ✅ concluída |
-| TASK-017 | RTSPCamera | pendente |
+| TASK-017 | RTSPCamera | ✅ concluída |
 
-Os módulos das tasks seguintes já existem como esqueletos com a interface
-pública definida e `NotImplementedError` no corpo.
+**MVP completo.** Todas as 17 tasks concluídas, 131 testes.
