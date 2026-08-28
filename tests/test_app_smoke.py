@@ -1,19 +1,20 @@
-"""TASK-001 — a aplicação arranca e os endpoints base respondem."""
-
-from fastapi.testclient import TestClient
-
-from app.main import create_app
-
-client = TestClient(create_app())
+"""TASK-001/002 — a aplicação arranca e os endpoints base respondem."""
 
 
-def test_health():
+def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json()["status"] == "healthy"
+    body = r.json()
+    assert body["status"] == "healthy"
+    assert body["camera"] is True  # FakeCamera disponível
 
 
-def test_llm_status_reports_config():
+def test_health_reports_camera_down(client, fake_camera):
+    fake_camera._available = False
+    assert client.get("/health").json()["camera"] is False
+
+
+def test_llm_status_reports_config(client):
     r = client.get("/api/llm/status")
     assert r.status_code == 200
     body = r.json()
@@ -21,11 +22,13 @@ def test_llm_status_reports_config():
     assert body["reachable"] is None  # TASK-006 liga a verificação real
 
 
-def test_camera_status():
+def test_camera_status(client):
     r = client.get("/api/camera/status")
     assert r.status_code == 200
-    assert r.json()["type"] == "usb"
+    body = r.json()
+    assert body["type"] == "usb"
+    assert body["available"] is True
 
 
-def test_capture_not_yet_implemented():
+def test_capture_not_yet_implemented(client):
     assert client.post("/api/capture").status_code == 501

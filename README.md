@@ -86,7 +86,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | Task | Descrição | Estado |
 |---|---|---|
 | TASK-001 | Estrutura do projeto e configuração | ✅ concluída |
-| TASK-002 | USBCamera | pendente |
+| TASK-002 | USBCamera | ✅ concluída |
 | TASK-003 | Preview da webcam | pendente |
 | TASK-004 | Captura manual | pendente |
 | TASK-005 | ImageProcessor | pendente |
