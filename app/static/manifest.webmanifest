@@ -1,0 +1,10 @@
+{
+  "name": "Question Vision Assistant",
+  "short_name": "QVA",
+  "description": "Captura e resolve questões de simulado via webcam + LLM local",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": []
+}

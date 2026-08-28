@@ -2,32 +2,63 @@
 <html lang="pt">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
     <title>Question Vision Assistant</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main>
+    <header>
       <h1>Question Vision Assistant</h1>
-      <p class="hint">Interface mínima (TASK-001). A UI real chega na TASK-011.</p>
+      <div id="status" class="status">
+        <span class="chip"><span class="dot" data-service="camera"></span> Câmera</span>
+        <span class="chip"><span class="dot" data-service="llm"></span> LLM</span>
+        <span class="chip"><span class="dot" data-service="server"></span> Servidor</span>
+      </div>
+    </header>
 
-      <section id="status">
-        <h2>Status</h2>
-        <ul>
-          <li><span class="dot" data-service="camera"></span> Camera</li>
-          <li><span class="dot" data-service="llm"></span> LLM</li>
-          <li><span class="dot" data-service="server"></span> Server</li>
-        </ul>
-      </section>
-
-      <section id="preview">
-        <h2>Preview</h2>
+    <main>
+      <section class="card" id="preview-card">
+        <div class="card-head">
+          <h2>Preview</h2>
+          <label class="switch">
+            <input type="checkbox" id="live" /> ao vivo
+          </label>
+        </div>
         <img id="preview-img" alt="preview da câmera" />
-        <label><input type="checkbox" id="live" /> ao vivo</label>
       </section>
 
-      <button id="capture" disabled>Capturar nova questão</button>
+      <p id="state-banner" class="banner" data-state="idle">Pronto para capturar.</p>
+
+      <button id="capture" class="primary">Capturar nova questão</button>
+
+      <section class="card" id="question-card" hidden>
+        <div class="card-head">
+          <h2>Questão <span id="question-type" class="tag"></span></h2>
+        </div>
+        <p id="question-text"></p>
+        <ul id="question-options"></ul>
+      </section>
+
+      <section class="card answer" id="answer-card" hidden>
+        <div class="card-head">
+          <h2>Resposta sugerida</h2>
+          <span id="confidence" class="confidence"></span>
+        </div>
+        <p id="answer-line" class="answer-line"></p>
+        <div id="ambiguous" class="warn" hidden>⚠️ Resposta ambígua — ver explicação.</div>
+        <h3>Explicação</h3>
+        <p id="explanation"></p>
+        <p id="timing" class="timing"></p>
+      </section>
+
+      <section class="card error" id="error-card" hidden>
+        <h2>Erro</h2>
+        <p id="error-text"></p>
+      </section>
     </main>
+
     <script src="/app.js"></script>
   </body>
 </html>

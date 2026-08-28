@@ -95,7 +95,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-008 | QuestionSolver | ✅ concluída |
 | TASK-009 | QuestionPipeline | ✅ concluída |
 | TASK-010 | WebSocket | ✅ concluída |
-| TASK-011 | Interface mobile | pendente |
+| TASK-011 | Interface mobile | ✅ concluída |
 | TASK-012 | FileCamera para testes | pendente |
 | TASK-013 | Métricas de latência | pendente |
 | TASK-014 | Testes | pendente |
