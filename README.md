@@ -61,6 +61,17 @@ docker compose up --build
 um container Linux não é suportado. Para o MVP com webcam USB, correr o backend
 diretamente no host. O container serve o modo `CAMERA_TYPE=file` e a fase RTSP.
 
+## Desenvolvimento sem webcam
+
+```bash
+# .env
+CAMERA_TYPE=file
+TEST_IMAGE=tests/fixtures/question.jpg
+```
+
+O pipeline corre igual — a `FileCamera` devolve a imagem de disco como frame.
+Para regenerar a fixture: `python tests/fixtures/make_fixture.py`.
+
 ## Testes
 
 ```bash
@@ -96,7 +107,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-009 | QuestionPipeline | ✅ concluída |
 | TASK-010 | WebSocket | ✅ concluída |
 | TASK-011 | Interface mobile | ✅ concluída |
-| TASK-012 | FileCamera para testes | pendente |
+| TASK-012 | FileCamera para testes | ✅ concluída |
 | TASK-013 | Métricas de latência | pendente |
 | TASK-014 | Testes | pendente |
 | TASK-015 | ChangeDetector | pendente |
