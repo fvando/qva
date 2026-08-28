@@ -115,7 +115,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-013 | Métricas de latência | ✅ concluída |
 | TASK-014 | Testes | ✅ concluída |
 | TASK-015 | ChangeDetector | ✅ concluída |
-| TASK-016 | Captura automática opcional | pendente |
+| TASK-016 | Captura automática opcional | ✅ concluída |
 | TASK-017 | RTSPCamera | pendente |
 
 Os módulos das tasks seguintes já existem como esqueletos com a interface

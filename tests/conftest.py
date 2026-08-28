@@ -23,6 +23,7 @@ def _reset_singletons():
         dependencies.get_llm_client,
         dependencies.get_metrics,
         dependencies.get_history,
+        dependencies.get_change_detector,
     ):
         fn.cache_clear()
     yield

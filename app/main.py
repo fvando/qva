@@ -15,17 +15,39 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.api import camera, capture, health, history, metrics, websocket
 from app.config import get_settings
-from app.dependencies import get_llm_client
+from app.dependencies import (
+    build_pipeline,
+    get_camera,
+    get_capture_registry,
+    get_change_detector,
+    get_llm_client,
+)
 from app.llm.http_client import HttpLLMClient
 from app.logging_config import configure_logging
+from app.services.auto_capture import AutoCaptureLoop
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
+
+    auto_loop: AutoCaptureLoop | None = None
+    if settings.auto_capture_enabled:
+        auto_loop = AutoCaptureLoop(
+            settings=settings,
+            camera=get_camera(),
+            detector=get_change_detector(),
+            pipeline=build_pipeline(),
+            registry=get_capture_registry(),
+        )
+        auto_loop.start()
+
     yield
-    # Fecha o httpx.AsyncClient do LLM ao encerrar.
+
+    if auto_loop is not None:
+        await auto_loop.stop()
     client = get_llm_client()
     if isinstance(client, HttpLLMClient):
         await client.aclose()

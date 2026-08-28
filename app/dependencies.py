@@ -82,6 +82,23 @@ def get_solver(llm: LLMClient = Depends(get_llm_client)) -> QuestionSolver:
     return QuestionSolver(llm=llm)
 
 
+def build_pipeline() -> QuestionPipeline:
+    """Constrói o pipeline sem `Depends` — para uso fora de um request
+    (lifespan, captura automática)."""
+    settings = get_settings()
+    llm = get_llm_client()
+    return QuestionPipeline(
+        camera=get_camera(),
+        image_processor=get_image_processor(),
+        extractor=QuestionExtractor(llm=llm, settings=settings),
+        solver=QuestionSolver(llm=llm),
+        registry=get_capture_registry(),
+        websocket_manager=get_websocket_manager(),
+        metrics=get_metrics(),
+        history=get_history(),
+    )
+
+
 def get_pipeline(
     camera: CameraSource = Depends(get_camera),
     image_processor: ImageProcessor = Depends(get_image_processor),

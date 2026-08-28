@@ -69,8 +69,14 @@ class QuestionPipeline:
             pass  # WebSocketManager completo chega na TASK-010
 
     # -- fluxo principal ------------------------------------------------
-    async def process_capture(self, capture_id: str) -> ConsolidatedResponse:
-        """Executa o pipeline para uma captura já registada no `CaptureRegistry`."""
+    async def process_capture(
+        self, capture_id: str, *, frame=None
+    ) -> ConsolidatedResponse:
+        """Executa o pipeline para uma captura já registada no `CaptureRegistry`.
+
+        Se `frame` for dado (captura automática, TASK-016), usa-o em vez de ler
+        de novo da câmera — assim não se perde o instante estável observado.
+        """
         timing = Timing()
         overall = time.perf_counter()
         log_extra = {"capture_id": capture_id, "request_id": capture_id}
@@ -82,7 +88,8 @@ class QuestionPipeline:
             # 1. Captura do frame -----------------------------------------
             self._registry.set_state(capture_id, CaptureState.CAPTURING)
             with _step(timing, "capture_ms"):
-                frame = await asyncio.to_thread(self._capture_frame)
+                if frame is None:
+                    frame = await asyncio.to_thread(self._capture_frame)
             logger.info("CAPTURE_COMPLETED", extra=log_extra)
 
             # 2. Processamento de imagem (OpenCV -> thread) -------------
