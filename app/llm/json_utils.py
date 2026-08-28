@@ -47,3 +47,12 @@ def extract_json_object(text: str) -> dict:
             return parsed
 
     raise JsonExtractionError("nenhum objeto JSON válido no texto do LLM")
+
+
+def clamp01(value) -> float:
+    """Converte para float e limita ao intervalo [0.0, 1.0]. Não-numérico -> 0.0."""
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(1.0, f))

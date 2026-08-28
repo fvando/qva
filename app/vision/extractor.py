@@ -15,7 +15,7 @@ import logging
 
 from app.config import Settings
 from app.llm.base import LLMClient, LLMRequest
-from app.llm.json_utils import JsonExtractionError, extract_json_object
+from app.llm.json_utils import JsonExtractionError, clamp01, extract_json_object
 from app.llm.prompts import EXTRACTION_SYSTEM, EXTRACTION_USER
 from app.models.question import Question, QuestionType
 from app.vision.encoding import encode_jpeg
@@ -93,7 +93,7 @@ class QuestionExtractor:
             code=_opt_str(data.get("code")),
             formulas=_opt_str(data.get("formulas")),
             has_image=bool(data.get("has_image", False)),
-            confidence=_clamp01(data.get("confidence", 0.0)),
+            confidence=clamp01(data.get("confidence", 0.0)),
         )
 
 
@@ -110,9 +110,3 @@ def _opt_str(value) -> str | None:
     return text or None
 
 
-def _clamp01(value) -> float:
-    try:
-        f = float(value)
-    except (TypeError, ValueError):
-        return 0.0
-    return max(0.0, min(1.0, f))

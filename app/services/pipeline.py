@@ -22,7 +22,8 @@ import logging
 import time
 
 from app.camera.base import CameraError, CameraSource
-from app.llm.solver import QuestionSolver
+from app.llm.solver import QuestionSolveError, QuestionSolver
+from app.vision.extractor import QuestionExtractionError
 from app.models.result import ConsolidatedResponse, Timing
 from app.services.captures import CaptureRegistry, CaptureState
 from app.vision.extractor import QuestionExtractor
@@ -125,6 +126,10 @@ def _error_reason(exc: BaseException) -> str:
         return f"image_quality_error: {exc.reason}"
     if isinstance(exc, CameraError):
         return f"camera_error: {exc}"
+    if isinstance(exc, QuestionExtractionError):
+        return f"question_extraction_error: {exc}"
+    if isinstance(exc, QuestionSolveError):
+        return f"question_solve_error: {exc}"
     if isinstance(exc, NotImplementedError):
         return f"not_implemented: {exc}"
     return f"pipeline_error: {exc}"

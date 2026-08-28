@@ -31,19 +31,33 @@ def test_capture_returns_202_with_id(client):
     assert len(body["capture_id"]) == 36  # uuid4
 
 
-def test_capture_runs_pipeline_and_reports_state(client):
-    """O pipeline corre ponta a ponta e nunca rebenta. Com a FakeCamera a
-    devolver um frame trivial (8x8 zeros), o ImageProcessor rejeita a imagem
-    e o pipeline termina em `error` — mas de forma controlada e consultável."""
+def test_capture_runs_pipeline_end_to_end(client):
+    """O pipeline corre ponta a ponta com FakeCamera + FakeLLM e completa,
+    produzindo questão + resultado + métricas."""
     capture_id = client.post("/api/capture").json()["capture_id"]
     # BackgroundTasks do TestClient corre de forma síncrona após a resposta.
     r = client.get(f"/api/capture/{capture_id}")
     assert r.status_code == 200
     body = r.json()
     assert body["id"] == capture_id
-    assert body["status"] == "error"
-    assert body["error"]  # há sempre um motivo
+    assert body["status"] == "completed"
+    assert body["question"] is not None
+    assert body["result"]["answer"] == "D"  # FakeLLM devolve {"answer":"D"}
     assert body["timing"]["total_ms"] >= 0
+    assert body["timing"]["image_processing_ms"] >= 0
+
+
+def test_capture_reports_error_when_camera_fails(client, fake_camera):
+    from app.camera.base import CameraError
+
+    def boom():
+        raise CameraError("sem sinal")
+
+    fake_camera.capture = boom
+    capture_id = client.post("/api/capture").json()["capture_id"]
+    body = client.get(f"/api/capture/{capture_id}").json()
+    assert body["status"] == "error"
+    assert "camera_error" in body["error"]
 
 
 def test_capture_status_404_for_unknown():

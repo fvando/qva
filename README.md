@@ -92,7 +92,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-005 | ImageProcessor | ✅ concluída |
 | TASK-006 | Integração HTTP com o LLM local | ✅ concluída |
 | TASK-007 | QuestionExtractor | ✅ concluída |
-| TASK-008 | QuestionSolver | pendente |
+| TASK-008 | QuestionSolver | ✅ concluída |
 | TASK-009 | QuestionPipeline | pendente |
 | TASK-010 | WebSocket | pendente |
 | TASK-011 | Interface mobile | pendente |
