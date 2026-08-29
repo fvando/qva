@@ -17,6 +17,8 @@ captures/
 *.png
 !docs/**/*.png
 !tests/fixtures/**
+!app/static/*.png
+scratch_*.jpg
 
 # Editor / SO
 .vscode/

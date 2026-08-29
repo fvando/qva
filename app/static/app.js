@@ -2,6 +2,13 @@
 (function () {
   "use strict";
 
+  // -- PWA: regista o service worker (shell offline / arranque rápido) -----
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () { /* ignora */ });
+    });
+  }
+
   var $ = function (id) { return document.getElementById(id); };
 
   // Elementos usados em vários blocos — declarados cedo para evitar
