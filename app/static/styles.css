@@ -123,6 +123,44 @@ h3 {
   color: var(--muted);
 }
 
+.camera-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.camera-picker select,
+.camera-picker input,
+.camera-picker button {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.camera-picker input {
+  flex: 1 1 12rem;
+}
+.camera-picker button {
+  background: var(--primary);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+.camera-msg {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.4rem 0 0;
+  min-height: 1em;
+}
+.camera-msg[data-kind="error"] {
+  color: var(--down);
+}
+.camera-msg[data-kind="ok"] {
+  color: var(--ok);
+}
+
 /* -- Banner de estado ------------------------------------------------- */
 .banner {
   margin: 0.5rem 0;

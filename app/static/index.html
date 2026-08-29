@@ -27,6 +27,17 @@
           </label>
         </div>
         <img id="preview-img" alt="preview da câmera" />
+        <div class="camera-picker">
+          <select id="camera-kind">
+            <option value="usb">USB / interna</option>
+            <option value="rtsp">Wi-Fi (RTSP)</option>
+            <option value="http">Wi-Fi (HTTP/MJPEG)</option>
+          </select>
+          <select id="camera-usb" hidden></select>
+          <input id="camera-url" type="text" placeholder="rtsp://utilizador:pass@ip:554/stream" hidden />
+          <button id="camera-apply" type="button">Usar</button>
+        </div>
+        <p id="camera-msg" class="camera-msg"></p>
       </section>
 
       <p id="state-banner" class="banner" data-state="idle">Pronto para capturar.</p>

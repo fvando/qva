@@ -6,10 +6,11 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.camera.base import CameraError, CameraSource
-from app.config import Settings, get_settings
-from app.dependencies import get_camera
+from app.camera.manager import CameraManager
+from app.dependencies import get_camera, get_camera_manager
 from app.vision.encoding import encode_jpeg
 
 router = APIRouter(prefix="/api/camera", tags=["camera"])
@@ -22,15 +23,39 @@ _STREAM_INTERVAL_S = 0.1
 
 @router.get("/status")
 async def camera_status(
-    settings: Settings = Depends(get_settings),
-    camera: CameraSource = Depends(get_camera),
+    manager: CameraManager = Depends(get_camera_manager),
 ) -> dict:
-    available = await asyncio.to_thread(camera.is_available)
-    return {
-        "available": available,
-        "type": settings.camera_type.value,
-        "device": settings.camera_device,
-    }
+    available = await asyncio.to_thread(manager.is_available)
+    desc = manager.description
+    return {"available": available, "type": desc["type"], "device": desc["target"]}
+
+
+@router.get("/devices")
+async def camera_devices(
+    manager: CameraManager = Depends(get_camera_manager),
+) -> dict:
+    """Lista as câmeras disponíveis (sonda USB 0-4) e a que está ativa."""
+    devices = await asyncio.to_thread(manager.list_devices)
+    return {"active": manager.description, "devices": devices}
+
+
+class SelectCameraBody(BaseModel):
+    kind: str  # usb | file | rtsp | http
+    target: str = ""  # índice USB, caminho de ficheiro, ou URL
+
+
+@router.post("/select")
+async def camera_select(
+    body: SelectCameraBody,
+    manager: CameraManager = Depends(get_camera_manager),
+) -> dict:
+    try:
+        desc = await asyncio.to_thread(manager.select, body.kind, body.target)
+    except CameraError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return {"active": desc}
 
 
 async def _grab_jpeg(camera: CameraSource) -> bytes:

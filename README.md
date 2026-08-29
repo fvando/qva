@@ -88,7 +88,7 @@ Ver [`.env.example`](.env.example). Destaques:
 
 | Variável | Efeito |
 |---|---|
-| `CAMERA_TYPE` | `usb` \| `file` \| `rtsp` \| `http` (só `usb`/`file` no MVP) |
+| `CAMERA_TYPE` | câmera inicial: `usb` \| `file` \| `rtsp` \| `http` (na UI podes trocar em runtime) |
 | `TEST_IMAGE` | imagem usada por `CAMERA_TYPE=file` (dev sem webcam) |
 | `LLM_BASE_URL` / `LLM_ENDPOINT` / `LLM_MODEL` | serviço LLM local (agnóstico de fornecedor) |
 | `LLM_SUPPORTS_VISION` | `true` = modo A (imagem→modelo Vision); `false` = modo B (RapidOCR→texto→modelo, com extração+resolução numa só chamada) |

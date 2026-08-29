@@ -11,7 +11,7 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.camera.base import CameraSource
-from app.camera.factory import build_camera
+from app.camera.manager import CameraManager
 from app.config import get_settings
 from app.llm.base import LLMClient
 from app.llm.http_client import HttpLLMClient
@@ -27,13 +27,18 @@ from app.websocket_manager import WebSocketManager
 
 
 @lru_cache
-def get_camera() -> CameraSource:
-    """Instância única de `CameraSource` para o processo.
+def get_camera_manager() -> CameraManager:
+    """Câmera ativa do processo, trocável em runtime pela UI.
 
-    Uma webcam USB é um recurso exclusivo — abrir várias `VideoCapture` sobre o
-    mesmo dispositivo falha. Manter uma só instância evita isso.
+    Uma webcam USB é um recurso exclusivo — manter uma só instância evita
+    abrir várias `VideoCapture` sobre o mesmo dispositivo.
     """
-    return build_camera(get_settings())
+    return CameraManager(get_settings())
+
+
+def get_camera() -> CameraSource:
+    """A `CameraSource` que o resto da app usa (é o `CameraManager`)."""
+    return get_camera_manager()
 
 
 @lru_cache

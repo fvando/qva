@@ -28,10 +28,86 @@
   var img = $("preview-img");
   var live = $("live");
   function showSnapshot() { img.src = "/api/camera/frame?t=" + Date.now(); }
-  live.addEventListener("change", function () {
-    img.src = live.checked ? "/api/camera/stream" : "/api/camera/frame?t=" + Date.now();
-  });
+  function refreshPreview() {
+    if (live.checked) img.src = "/api/camera/stream?t=" + Date.now();
+    else showSnapshot();
+  }
+  live.addEventListener("change", refreshPreview);
   showSnapshot();
+
+  // -- Escolha de câmera ------------------------------------------------
+  var kindSel = $("camera-kind");
+  var usbSel = $("camera-usb");
+  var urlInput = $("camera-url");
+  var applyBtn = $("camera-apply");
+  var camMsg = $("camera-msg");
+
+  function updatePickerFields() {
+    var k = kindSel.value;
+    usbSel.hidden = k !== "usb";
+    urlInput.hidden = k === "usb";
+  }
+  kindSel.addEventListener("change", updatePickerFields);
+
+  async function loadDevices() {
+    try {
+      var data = await (await fetch("/api/camera/devices")).json();
+      usbSel.innerHTML = "";
+      (data.devices || []).forEach(function (d) {
+        var o = document.createElement("option");
+        o.value = d.target;
+        o.textContent = d.label;
+        usbSel.appendChild(o);
+      });
+      if (!data.devices || !data.devices.length) {
+        var o = document.createElement("option");
+        o.value = "0";
+        o.textContent = "Câmera 0 (padrão)";
+        usbSel.appendChild(o);
+      }
+      // reflete a câmera ativa
+      var a = data.active || {};
+      if (a.type) {
+        kindSel.value = a.type === "file" ? "usb" : a.type;
+        if (a.type === "usb") usbSel.value = a.target;
+        else urlInput.value = a.target || "";
+      }
+      updatePickerFields();
+    } catch (e) {
+      camMsg.textContent = "não foi possível listar câmeras";
+    }
+  }
+  loadDevices();
+
+  applyBtn.addEventListener("click", async function () {
+    var kind = kindSel.value;
+    var target = kind === "usb" ? usbSel.value : urlInput.value.trim();
+    camMsg.dataset.kind = "";
+    camMsg.textContent = "a mudar de câmera…";
+    applyBtn.disabled = true;
+    try {
+      var r = await fetch("/api/camera/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: kind, target: target }),
+      });
+      if (!r.ok) {
+        var err = await r.json();
+        camMsg.dataset.kind = "error";
+        camMsg.textContent = "erro: " + (err.detail || r.status);
+      } else {
+        camMsg.dataset.kind = "ok";
+        camMsg.textContent = "câmera alterada.";
+        setDot("camera", "ok");
+        refreshPreview();
+      }
+    } catch (e) {
+      camMsg.dataset.kind = "error";
+      camMsg.textContent = "falha ao contactar o servidor";
+    } finally {
+      applyBtn.disabled = false;
+    }
+  });
 
   // -- Estados visuais (secção 17) -------------------------------------
   var STATE_LABEL = {

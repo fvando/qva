@@ -8,7 +8,7 @@ from app.camera.base import CameraSource
 from app.config import Settings
 from app.llm.base import LLMClient, LLMRequest, LLMResponse
 from app import dependencies
-from app.dependencies import get_camera, get_llm_client
+from app.dependencies import get_camera, get_camera_manager, get_llm_client
 from app.main import create_app
 
 
@@ -33,7 +33,7 @@ def _reset_singletons():
     """Limpa os singletons `@lru_cache` entre testes (registry de capturas,
     câmera, etc.) para não haver contaminação de estado."""
     for fn in (
-        dependencies.get_camera,
+        dependencies.get_camera_manager,
         dependencies.get_capture_registry,
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
@@ -92,9 +92,28 @@ class FakeCamera(CameraSource):
         return self._available
 
 
+class FakeCameraManager(FakeCamera):
+    """FakeCamera + a API de gestão do CameraManager (para os testes de client)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._desc = {"type": "usb", "target": "0"}
+
+    @property
+    def description(self) -> dict:
+        return dict(self._desc)
+
+    def select(self, kind: str, target: str) -> dict:
+        self._desc = {"type": kind, "target": target}
+        return self.description
+
+    def list_devices(self) -> list[dict]:
+        return [{"kind": "usb", "target": "0", "label": "Câmera USB 0"}]
+
+
 @pytest.fixture
-def fake_camera() -> FakeCamera:
-    return FakeCamera()
+def fake_camera() -> FakeCameraManager:
+    return FakeCameraManager()
 
 
 @pytest.fixture
@@ -108,6 +127,7 @@ def client(fake_camera: FakeCamera, fake_llm: FakeLLM) -> TestClient:
 
     app = create_app()
     app.dependency_overrides[get_camera] = lambda: fake_camera
+    app.dependency_overrides[get_camera_manager] = lambda: fake_camera
     app.dependency_overrides[get_llm_client] = lambda: fake_llm
     app.dependency_overrides[_real_get_settings] = lambda: TEST_SETTINGS
     return TestClient(app)
