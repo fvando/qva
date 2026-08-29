@@ -10,6 +10,8 @@ httpx==0.28.1
 # Enumerar câmeras de vídeo por nome no Windows (instantâneo). Ignorado noutras
 # plataformas — o `list_video_input_names()` faz fallback.
 pygrabber==0.2 ; sys_platform == "win32"
+# Gerar certificado self-signed para HTTPS (câmera do browser no telemóvel).
+cryptography==45.0.3
 
 # OCR para o modo B (LLM_SUPPORTS_VISION=false).
 # RapidOCR: ONNX, CPU, sem binário externo — preferido.

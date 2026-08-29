@@ -1,5 +1,8 @@
 # Ambiente
 .env
+
+# Certificados TLS gerados localmente
+certs/
 .venv/
 venv/
 __pycache__/

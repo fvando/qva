@@ -29,7 +29,17 @@ públicas. Trocar webcam USB por câmera IP (RTSP) não altera o pipeline.
 
 Trocável na interface a qualquer momento. Para usar o telemóvel como câmera,
 escolhe **"Câmera deste dispositivo"** e permite o acesso — funciona sem
-instalar nada.
+instalar nada, mas **exige HTTPS** (ver abaixo).
+
+### HTTPS (para a câmera do telemóvel)
+
+```env
+HTTPS=true
+```
+
+`python -m app` gera um certificado self-signed em `certs/` (cobre `localhost`
+e os IPs da LAN) e serve por `https://`. No telemóvel, aceita o aviso de
+certificado uma vez. Sem HTTPS, a câmera do browser só funciona em `localhost`.
 
 ## Estrutura
 

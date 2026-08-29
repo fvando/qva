@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     auth_token: str = ""
     """Token opcional. Vazio = sem autenticação (apenas LAN)."""
 
+    https: bool = False
+    """Servir por HTTPS. Necessário para a câmera do browser (`getUserMedia`)
+    funcionar num telemóvel via LAN. Gera um certificado self-signed se não
+    existir em `certs/`."""
+    ssl_certfile: str = "certs/qva.crt"
+    ssl_keyfile: str = "certs/qva.key"
+
     # -- Câmera -----------------------------------------------------------
     camera_type: CameraType = CameraType.USB
     camera_device: str = "0"

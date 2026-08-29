@@ -59,6 +59,26 @@ Abre `http://localhost:8080/` no PC e `http://<ip-do-pc>:8080/` no telemóvel
 - Aponta a webcam à tela com a questão, usa o preview para enquadrar.
 - Carrega em **Capturar**. A resposta aparece nos dois ecrãs via WebSocket.
 
+## Usar a câmera do telemóvel (CAMERA_TYPE=browser)
+
+O browser só dá acesso à câmera em `localhost` ou **HTTPS**. Para o telemóvel:
+
+```bash
+# .env: HTTPS=true   (CAMERA_TYPE pode ser qualquer — troca-se na UI)
+python -m app
+```
+
+No arranque são impressos os URLs `https://...`. No telemóvel abre
+`https://<ip-do-pc>:8080/` (o mostrado para a tua LAN, ex: `192.168.1.4`).
+
+1. O telemóvel avisa **"ligação não privada / certificado não confiável"** —
+   é o certificado self-signed. Escolhe *Avançado → Continuar*.
+2. Na interface, no seletor de câmera escolhe **"Câmera deste dispositivo"** e
+   carrega **Usar**. Permite o acesso à câmera quando o browser pedir.
+3. Aponta a câmera do telemóvel à questão e carrega **Capturar**.
+
+O certificado é gerado uma vez em `certs/` e cobre `localhost` + os IPs da LAN.
+
 ## Recolher exemplos para calibração
 
 Guarda 10-20 fotos representativas (ângulos, luz, tipos de questão) numa pasta.
