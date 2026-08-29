@@ -16,6 +16,9 @@ inteiro). Usa, quando ajudar:
 - `código` para expressões/variáveis (ex: `F = A'·B + C·D`, `x_{k+1}`);
 - tabelas Markdown para mapas de Karnaugh e tabelas-verdade (colunas curtas);
 - blocos ``` para código ou pseudo-código com várias linhas.
+Usa quebras de linha reais no JSON (o caractere de escape \\n dentro da string), \
+NUNCA a sequência de dois caracteres barra-n. Não envolvas o valor em aspas \
+extra nem num bloco ```.
 Sê conciso: só o essencial para justificar a resposta."""
 
 EXTRACTION_SYSTEM = """Você é um extrator de questões de estudo/simulado.

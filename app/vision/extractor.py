@@ -292,7 +292,7 @@ def _parse_result(data: dict, question: Question) -> SolveResult:
     return SolveResult(
         answer=answer,
         answer_text=answer_text,
-        explanation=str(data.get("explanation") or "").strip(),
+        explanation=_clean_explanation(data.get("explanation")),
         confidence=clamp01(data.get("confidence", 0.0)),
         ambiguous=bool(data.get("ambiguous", False)),
     )
@@ -302,6 +302,31 @@ def _encode_b64(image) -> str:
     import base64
 
     return base64.b64encode(encode_jpeg(image)).decode("ascii")
+
+
+def _clean_explanation(value) -> str:
+    """Normaliza a explicação Markdown vinda do modelo.
+
+    Alguns modelos devolvem o valor envolto em aspas literais (``"...texto..."``)
+    ou dentro de um bloco ```` ``` ````; outros escapam as quebras de linha como
+    ``\\n`` literais. Removemos essas camadas para o renderer de Markdown do
+    telemóvel receber texto real.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    # ``\n`` literais → quebras de linha reais (só quando não há quebras reais).
+    if "\n" not in text and "\\n" in text:
+        text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    # Bloco de código à volta do todo: ```lang\n...\n```
+    if text.startswith("```") and text.endswith("```") and len(text) > 6:
+        inner = text[3:-3]
+        inner = inner.split("\n", 1)[1] if "\n" in inner else inner
+        text = inner.strip()
+    # Par único de aspas a envolver tudo.
+    if len(text) >= 2 and text[0] in '"“' and text[-1] in '"”':
+        text = text[1:-1].strip()
+    return text
 
 
 def _opt_str(value) -> str | None:

@@ -27,6 +27,16 @@ def test_prompt_asks_for_markdown_explanation():
         assert "tabela" in p.lower()  # menciona tabelas (Karnaugh / verdade)
 
 
+def test_clean_explanation_strips_wrappers():
+    from app.vision.extractor import _clean_explanation
+
+    assert _clean_explanation('"**x**\ncom aspas"') == "**x**\ncom aspas"
+    assert _clean_explanation('linha\\ncom escape') == "linha\ncom escape"
+    assert _clean_explanation('```\n**x**\n```') == "**x**"
+    assert _clean_explanation("texto normal") == "texto normal"
+    assert _clean_explanation(None) == ""
+
+
 def test_md_js_has_table_and_code_support(client):
     js = client.get("/md.js").text
     assert "md-table-wrap" in js
