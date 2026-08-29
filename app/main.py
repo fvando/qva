@@ -62,6 +62,10 @@ async def lifespan(app: FastAPI):
 
     if auto_loop is not None:
         await auto_loop.stop()
+    try:
+        get_camera().close()  # liberta a webcam
+    except Exception:  # noqa: BLE001
+        pass
     client = get_llm_client()
     if isinstance(client, HttpLLMClient):
         await client.aclose()

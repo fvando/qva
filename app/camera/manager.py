@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 
 from app.camera.base import CameraError, CameraSource
 from app.camera.browser import BrowserCamera
@@ -23,14 +24,23 @@ logger = logging.getLogger(__name__)
 
 # Índices USB a sondar ao listar dispositivos.
 _MAX_USB_PROBE = 5
+# Quanto tempo o resultado de is_available() é reaproveitado sem voltar a sondar
+# a câmera. Evita que /health (15s) + /api/camera/status abram/fechem a webcam
+# repetidamente — a webcam USB é lenta a re-inicializar e isso causava falhas.
+_AVAILABILITY_CACHE_S = 8.0
 
 
 class CameraManager(CameraSource):
-    """`CameraSource` que delega numa câmera ativa trocável."""
+    """`CameraSource` que delega numa câmera ativa trocável.
+
+    Todo o acesso à câmera é serializado por um lock reentrante — vários
+    pedidos HTTP concorrentes (preview, status, captura) partilham a mesma
+    `VideoCapture`, que não é thread-safe.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         # A câmera do browser tem estado (o último frame enviado) — instância
         # única, reutilizada sempre que se voltar a `browser`.
         self._browser = BrowserCamera()
@@ -39,23 +49,48 @@ class CameraManager(CameraSource):
         else:
             self._active = build_camera(settings)
         self._desc = _describe(settings.camera_type.value, _initial_target(settings))
+        self._avail_value = False
+        self._avail_ts = 0.0
 
     @property
     def browser_camera(self) -> BrowserCamera:
         return self._browser
 
-    # -- CameraSource: delega tudo na ativa ----------------------------
+    # -- CameraSource: delega tudo na ativa, serializado --------------
     def open(self) -> None:
-        self._active.open()
+        with self._lock:
+            self._active.open()
 
     def capture(self):
-        return self._active.capture()
+        with self._lock:
+            self._active.open()  # garante aberta (idempotente)
+            frame = self._active.capture()
+        self._mark_available(True)
+        return frame
 
     def close(self) -> None:
-        self._active.close()
+        with self._lock:
+            self._active.close()
 
     def is_available(self) -> bool:
-        return self._active.is_available()
+        now = time.monotonic()
+        with self._lock:
+            if now - self._avail_ts < _AVAILABILITY_CACHE_S:
+                return self._avail_value
+            try:
+                self._active.open()
+                self._active.capture()
+                ok = True
+            except CameraError:
+                ok = False
+            self._avail_value = ok
+            self._avail_ts = now
+        return ok
+
+    def _mark_available(self, ok: bool) -> None:
+        with self._lock:
+            self._avail_value = ok
+            self._avail_ts = time.monotonic()
 
     # -- gestão da câmera ativa --------------------------------------
     @property

@@ -63,6 +63,33 @@ def test_select_rejects_unavailable_and_keeps_old(monkeypatch):
     assert old.closed is False
 
 
+def test_is_available_result_is_cached(monkeypatch):
+    """is_available() não deve sondar a câmera a cada chamada (só a cada
+    _AVAILABILITY_CACHE_S) — evita abrir/fechar a webcam repetidamente."""
+    m = _mgr(monkeypatch)
+    calls = {"n": 0}
+
+    def probe():
+        calls["n"] += 1
+
+    m._active.open = probe
+    m._active.capture = lambda: None
+
+    m.is_available()
+    m.is_available()
+    m.is_available()
+    assert calls["n"] == 1  # só sondou uma vez (as outras vieram do cache)
+
+
+def test_capture_marks_available_without_probing(monkeypatch):
+    m = _mgr(monkeypatch)
+    m._avail_ts = 0.0  # força cache expirado
+    m.capture()
+    # logo a seguir, is_available não volta a sondar
+    m._active.open = lambda: (_ for _ in ()).throw(AssertionError("não devia sondar"))
+    assert m.is_available() is True
+
+
 def test_list_devices_uses_names_when_available(monkeypatch):
     m = _mgr(monkeypatch)
     monkeypatch.setattr(
