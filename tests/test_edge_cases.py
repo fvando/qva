@@ -48,6 +48,27 @@ def test_tesseract_ocr_missing_dependency(monkeypatch):
         TesseractOCR().image_to_text(np.zeros((4, 4, 3), dtype=np.uint8))
 
 
+def test_build_ocr_engine_falls_back_and_raises(monkeypatch):
+    import app.vision.ocr as ocr_mod
+    from app.vision.ocr import OCRUnavailableError
+
+    def unavailable(*a, **k):
+        raise OCRUnavailableError("nada")
+
+    monkeypatch.setattr(ocr_mod.RapidOCREngine, "__init__", unavailable)
+    monkeypatch.setattr(ocr_mod.TesseractOCR, "__init__", unavailable)
+    with pytest.raises(OCRUnavailableError):
+        ocr_mod.build_ocr_engine()
+
+
+def test_build_ocr_engine_picks_first_available(monkeypatch):
+    import app.vision.ocr as ocr_mod
+
+    monkeypatch.setattr(ocr_mod.RapidOCREngine, "__init__", lambda self: None)
+    engine = ocr_mod.build_ocr_engine()
+    assert isinstance(engine, ocr_mod.RapidOCREngine)
+
+
 def _bright_cap(events=None):
     class FakeCap:
         def isOpened(self):

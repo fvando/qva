@@ -8,8 +8,10 @@ opencv-python-headless==4.10.0.84
 numpy==2.2.1
 httpx==0.28.1
 
-# OCR opcional — só necessário no modo B (LLM_SUPPORTS_VISION=false).
-# Requer também o binário `tesseract` instalado no sistema.
+# OCR para o modo B (LLM_SUPPORTS_VISION=false).
+# RapidOCR: ONNX, CPU, sem binário externo — preferido.
+rapidocr-onnxruntime==1.4.4
+# Alternativa clássica (requer o binário `tesseract` no sistema):
 # pytesseract==0.3.13
 
 # Dev / testes

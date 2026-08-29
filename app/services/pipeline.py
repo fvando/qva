@@ -103,25 +103,41 @@ class QuestionPipeline:
                 extra={**log_extra, **processed.metrics(), "screen": processed.screen_detected},
             )
 
-            # 3. Extração da questão -----------------------------------
-            self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
-            with _step(timing, "question_extraction_ms"):
-                question = await self._extractor.extract(processed)
-            logger.info(
-                "QUESTION_EXTRACTED",
-                extra={**log_extra, "type": question.type.value},
-            )
-            await self._emit(
-                "question_detected",
-                {"capture_id": capture_id, "question": question.model_dump(mode="json")},
-            )
+            combined = getattr(self._extractor, "supports_combined", False)
 
-            # 4. Resolução -------------------------------------------
-            self._registry.set_state(capture_id, CaptureState.SOLVING)
-            logger.info("LLM_REQUEST_STARTED", extra=log_extra)
-            with _step(timing, "llm_ms"):
-                result = await self._solver.solve(question)
-            logger.info("LLM_REQUEST_COMPLETED", extra=log_extra)
+            if combined:
+                # Modo B: extração + resolução numa só chamada ao LLM.
+                self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
+                logger.info("LLM_REQUEST_STARTED", extra=log_extra)
+                with _step(timing, "question_extraction_ms"):
+                    question, result = await self._extractor.extract_and_solve(processed)
+                logger.info(
+                    "QUESTION_EXTRACTED", extra={**log_extra, "type": question.type.value}
+                )
+                logger.info("LLM_REQUEST_COMPLETED", extra=log_extra)
+                await self._emit(
+                    "question_detected",
+                    {"capture_id": capture_id, "question": question.model_dump(mode="json")},
+                )
+            else:
+                # 3. Extração da questão --------------------------------
+                self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
+                with _step(timing, "question_extraction_ms"):
+                    question = await self._extractor.extract(processed)
+                logger.info(
+                    "QUESTION_EXTRACTED", extra={**log_extra, "type": question.type.value}
+                )
+                await self._emit(
+                    "question_detected",
+                    {"capture_id": capture_id, "question": question.model_dump(mode="json")},
+                )
+
+                # 4. Resolução -------------------------------------
+                self._registry.set_state(capture_id, CaptureState.SOLVING)
+                logger.info("LLM_REQUEST_STARTED", extra=log_extra)
+                with _step(timing, "llm_ms"):
+                    result = await self._solver.solve(question)
+                logger.info("LLM_REQUEST_COMPLETED", extra=log_extra)
 
             timing.total_ms = (time.perf_counter() - overall) * 1000
             response = ConsolidatedResponse(

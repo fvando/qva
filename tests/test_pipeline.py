@@ -129,6 +129,47 @@ async def test_solver_failure_is_reported():
     assert "question_solve_error" in resp.error
 
 
+class CombinedExtractor:
+    """Extractor de modo B: uma só chamada devolve questão + resultado."""
+
+    supports_combined = True
+
+    def __init__(self) -> None:
+        self.called = False
+
+    async def extract_and_solve(self, processed):
+        self.called = True
+        return (
+            Question(type=QuestionType.MULTIPLE_CHOICE, question="?", options={"A": "x"}),
+            SolveResult(answer="A", answer_text="x", confidence=0.9),
+        )
+
+    async def extract(self, processed):  # não deve ser chamado
+        raise AssertionError("caminho combinado não deve usar extract()")
+
+
+async def test_combined_path_skips_solver():
+    reg = CaptureRegistry()
+    ex = CombinedExtractor()
+
+    class BoomSolver:
+        async def solve(self, q):
+            raise AssertionError("solver não deve ser chamado no caminho combinado")
+
+    p = QuestionPipeline(
+        camera=FakeCamera(),
+        image_processor=StubProcessor(),
+        extractor=ex,
+        solver=BoomSolver(),
+        registry=reg,
+    )
+    resp = await p.process_capture(reg.create().id)
+    assert ex.called is True
+    assert resp.status == "completed"
+    assert resp.result.answer == "A"
+    assert resp.timing.question_extraction_ms >= 0
+
+
 async def test_pipeline_works_without_websocket():
     reg = CaptureRegistry()
     p = QuestionPipeline(

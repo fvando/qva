@@ -5,10 +5,27 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.camera.base import CameraSource
+from app.config import Settings
 from app.llm.base import LLMClient, LLMRequest, LLMResponse
 from app import dependencies
 from app.dependencies import get_camera, get_llm_client
 from app.main import create_app
+
+
+TEST_SETTINGS = Settings(_env_file=None, llm_supports_vision=True)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_settings(monkeypatch):
+    """Os testes nunca devem depender do `.env` real da máquina.
+    Substitui `get_settings` em todos os módulos que o importaram por nome."""
+    for target in (
+        "app.config.get_settings",
+        "app.dependencies.get_settings",
+        "app.main.get_settings",
+    ):
+        monkeypatch.setattr(target, lambda: TEST_SETTINGS)
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +104,10 @@ def fake_llm() -> FakeLLM:
 
 @pytest.fixture
 def client(fake_camera: FakeCamera, fake_llm: FakeLLM) -> TestClient:
+    from app.config import get_settings as _real_get_settings
+
     app = create_app()
     app.dependency_overrides[get_camera] = lambda: fake_camera
     app.dependency_overrides[get_llm_client] = lambda: fake_llm
+    app.dependency_overrides[_real_get_settings] = lambda: TEST_SETTINGS
     return TestClient(app)

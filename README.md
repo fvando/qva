@@ -91,7 +91,7 @@ Ver [`.env.example`](.env.example). Destaques:
 | `CAMERA_TYPE` | `usb` \| `file` \| `rtsp` \| `http` (só `usb`/`file` no MVP) |
 | `TEST_IMAGE` | imagem usada por `CAMERA_TYPE=file` (dev sem webcam) |
 | `LLM_BASE_URL` / `LLM_ENDPOINT` / `LLM_MODEL` | serviço LLM local (agnóstico de fornecedor) |
-| `LLM_SUPPORTS_VISION` | escolhe modo multimodal vs. OCR+LLM (interno ao extractor) |
+| `LLM_SUPPORTS_VISION` | `true` = modo A (imagem→modelo Vision); `false` = modo B (RapidOCR→texto→modelo, com extração+resolução numa só chamada) |
 | `AUTO_CAPTURE_ENABLED` | captura automática (desligada no MVP) |
 | `STORE_IMAGES` | `false` — imagens só em memória (local-first) |
 | `AUTH_TOKEN` | vazio = sem autenticação (apenas LAN) |
@@ -118,4 +118,21 @@ Ver [`.env.example`](.env.example). Destaques:
 | TASK-016 | Captura automática opcional | ✅ concluída |
 | TASK-017 | RTSPCamera | ✅ concluída |
 
-**MVP completo.** Todas as 17 tasks concluídas, 131 testes.
+**MVP completo.** Todas as 17 tasks concluídas, 140 testes.
+
+## Validação com LLM real (Ollama)
+
+Testado ponta a ponta (`CAMERA_TYPE=file` + fixture) contra Ollama local em CPU:
+
+| Configuração | Latência/questão | Resultado |
+|---|---|---|
+| Modo A visão (`minicpm-v`, CPU) | ~2 min | correto |
+| Modo B, extração+resolução separadas (`qwen2.5:7b`) | ~48 s | correto |
+| **Modo B fundido (`qwen2.5:7b`)** | **~22 s** (modelo quente) | correto |
+
+A meta de <5 s da spec pressupõe aceleração (GPU ou API cloud) — o
+`HttpLLMClient` é agnóstico, basta trocar `LLM_BASE_URL`/`LLM_API_KEY`.
+Em CPU, ~20 s/questão é o realista.
+
+OCR: `rapidocr-onnxruntime` (ONNX, sem binário externo). Fallback para
+`pytesseract` se instalado.

@@ -106,3 +106,46 @@ async def test_options_non_dict_becomes_empty():
     ex = QuestionExtractor(llm=llm, settings=_settings(vision=True))
     q = await ex.extract(_processed())
     assert q.options == {}
+
+
+# -- modo B combinado (extract_and_solve) --------------------------------
+def test_supports_combined_only_in_mode_b():
+    assert QuestionExtractor(FakeLLM(), _settings(vision=False)).supports_combined is True
+    assert QuestionExtractor(FakeLLM(), _settings(vision=True)).supports_combined is False
+
+
+async def test_extract_and_solve_flat_json():
+    body = (
+        '{"type":"multiple_choice","language":"pt","question":"Qual e LIFO?",'
+        '"options":{"A":"Fila","B":"Pilha"},"answer":"B","answer_text":"Pilha",'
+        '"explanation":"LIFO = pilha","confidence":0.95,"ambiguous":false}'
+    )
+    llm = FakeLLM(text=body)
+    ocr = FakeOCR("Qual e LIFO? A) Fila B) Pilha")
+    ex = QuestionExtractor(llm=llm, settings=_settings(vision=False), ocr=ocr)
+
+    question, result = await ex.extract_and_solve(_processed())
+    assert ocr.called is True
+    assert llm.calls[0].image_b64 is None  # sem imagem no modo B
+    assert question.type is QuestionType.MULTIPLE_CHOICE
+    assert question.options == {"A": "Fila", "B": "Pilha"}
+    assert result.answer == "B"
+    assert result.answer_text == "Pilha"
+    assert result.confidence == 0.95
+
+
+async def test_extract_and_solve_fills_answer_text_from_options():
+    body = '{"type":"multiple_choice","question":"?","options":{"A":"Fila","B":"Pilha"},"answer":"B"}'
+    ex = QuestionExtractor(
+        llm=FakeLLM(text=body), settings=_settings(vision=False), ocr=FakeOCR("x")
+    )
+    _, result = await ex.extract_and_solve(_processed())
+    assert result.answer_text == "Pilha"
+
+
+async def test_extract_and_solve_non_json_raises():
+    ex = QuestionExtractor(
+        llm=FakeLLM(text="não consegui"), settings=_settings(vision=False), ocr=FakeOCR("x")
+    )
+    with pytest.raises(QuestionExtractionError):
+        await ex.extract_and_solve(_processed())
