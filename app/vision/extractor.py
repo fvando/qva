@@ -143,7 +143,11 @@ class QuestionExtractor:
             if combined
             else EXTRACTION_USER
         )
-        return LLMRequest(system=system, prompt=prompt, image_b64=image_b64)
+        # A resposta combinada (questão + opções + explicação) é maior que uma
+        # extração simples — mais folga de tokens para o JSON não sair cortado.
+        return LLMRequest(
+            system=system, prompt=prompt, image_b64=image_b64, max_tokens=2000
+        )
 
     async def _ocr_request(self, processed: ProcessedImage) -> LLMRequest:
         ocr = self._get_ocr()

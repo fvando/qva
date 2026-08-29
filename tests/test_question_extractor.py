@@ -180,3 +180,11 @@ async def test_confidence_clamped():
     ex = QuestionExtractor(llm=FakeLLM(text=body), settings=_settings("ocr"), ocr=FakeOCR())
     q, _ = await ex.extract_and_solve(_processed())
     assert q.confidence == 1.0
+
+
+def test_json_repair_truncated():
+    from app.llm.json_utils import extract_json_object
+    trunc = '{"answer":"B","options":{"A":"x","B":"y"},"explanation":"texto cortado a meio'
+    d = extract_json_object(trunc)
+    assert d["answer"] == "B"
+    assert d["options"] == {"A": "x", "B": "y"}

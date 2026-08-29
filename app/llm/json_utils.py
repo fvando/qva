@@ -46,7 +46,49 @@ def extract_json_object(text: str) -> dict:
         if isinstance(parsed, dict):
             return parsed
 
+    # Última tentativa: o JSON pode ter sido cortado (max_tokens). Tenta reparar
+    # fechando strings/chavetas abertas a partir do primeiro '{'.
+    if start != -1:
+        repaired = _repair_truncated_json(text[start:])
+        if repaired is not None:
+            return repaired
+
     raise JsonExtractionError("nenhum objeto JSON válido no texto do LLM")
+
+
+def _repair_truncated_json(s: str) -> dict | None:
+    """Fecha aspas e chavetas/parênteses abertos num JSON truncado."""
+    in_str = False
+    escape = False
+    stack: list[str] = []
+    for ch in s:
+        if escape:
+            escape = False
+            continue
+        if ch == "\\" and in_str:
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]" and stack:
+            stack.pop()
+
+    fixed = s.rstrip()
+    # remove uma vírgula/dois-pontos pendente no fim
+    fixed = fixed.rstrip(",: \n\t")
+    if in_str:
+        fixed += '"'
+    fixed += "".join(reversed(stack))
+    try:
+        parsed = json.loads(fixed)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def clamp01(value) -> float:
