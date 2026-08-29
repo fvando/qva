@@ -91,6 +91,11 @@ class Settings(BaseSettings):
     """Modelo de visão. Vazio = usa `llm_model` (só faz sentido se ele for
     multimodal)."""
 
+    llm_fallback_models: str = ""
+    """Modelos alternativos (CSV) a tentar se o principal falhar por rate limit
+    (429) ou indisponibilidade. Útil com modelos ':free' da OpenRouter, que
+    saturam com frequência."""
+
     # -- Deteção de mudança / captura automática ------------------------
     auto_capture_enabled: bool = False
     change_threshold: float = 0.25

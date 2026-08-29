@@ -141,3 +141,38 @@ async def test_health_false_on_error():
         raise httpx.ConnectError("nope", request=request)
 
     assert await _client(handler).health() is False
+
+
+async def test_fallback_on_rate_limit():
+    """Se o modelo principal dá 429, tenta o fallback seguinte."""
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+        body = json.loads(request.content)
+        calls.append(body["model"])
+        if body["model"] == "primary":
+            return httpx.Response(429, text="rate limited")
+        return httpx.Response(200, json=_ok_body("resposta do fallback"))
+
+    s = _settings(llm_model="primary")
+    s = s.model_copy(update={"llm_fallback_models": "backup-a, backup-b"})
+    llm = HttpLLMClient(s, client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+
+    out = await llm.generate(LLMRequest(prompt="x"))
+    assert out.text == "resposta do fallback"
+    assert calls == ["primary", "backup-a"]
+
+
+async def test_fallback_not_used_for_bad_json():
+    """bad_json não é rate limit — não tenta o fallback."""
+    def handler(request):
+        return httpx.Response(200, text="isto nao e json {")
+
+    s = _settings(llm_model="primary").model_copy(
+        update={"llm_fallback_models": "backup"}
+    )
+    llm = HttpLLMClient(s, client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    with pytest.raises(LLMError) as e:
+        await llm.generate(LLMRequest(prompt="x"))
+    assert e.value.kind == "bad_json"

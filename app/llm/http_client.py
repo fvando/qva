@@ -144,15 +144,41 @@ class HttpLLMClient(LLMClient):
             raise LLMError("invalid_response", "conteúdo vazio ou não textual")
         return content
 
+    def _fallback_models(self) -> list[str]:
+        raw = (self._settings.llm_fallback_models or "").strip()
+        return [m.strip() for m in raw.split(",") if m.strip() and m.strip() != self._model]
+
     # -- chamada principal ------------------------------------------------
     async def generate(self, request: LLMRequest) -> LLMResponse:
+        """Tenta o modelo ativo; se falhar por rate limit / indisponibilidade
+        (429, 5xx), tenta os `LLM_FALLBACK_MODELS` pela ordem dada."""
+        candidates = [self._model, *self._fallback_models()]
+        last_error: LLMError | None = None
+
+        for i, model in enumerate(candidates):
+            try:
+                return await self._generate_once(request, model)
+            except LLMError as exc:
+                last_error = exc
+                # só vale a pena tentar outro modelo se foi rate limit /
+                # servidor / modelo indisponível — não se foi timeout local,
+                # JSON inválido, etc.
+                if exc.kind not in ("http_4xx", "http_5xx", "connection"):
+                    raise
+                if i + 1 < len(candidates):
+                    logger.info(
+                        "LLM_FALLBACK",
+                        extra={"model": model, "error_type": exc.kind},
+                    )
+        raise last_error  # type: ignore[misc]
+
+    async def _generate_once(self, request: LLMRequest, model: str) -> LLMResponse:
         url = self._settings.llm_url
         payload = self._build_payload(request)
+        payload["model"] = model
         t0 = time.perf_counter()
 
-        logger.info(
-            "LLM_REQUEST_STARTED", extra={"model": self._model}
-        )
+        logger.info("LLM_REQUEST_STARTED", extra={"model": model})
         try:
             resp = await self._get_client().post(
                 url, json=payload, headers=self._headers()
@@ -181,11 +207,11 @@ class HttpLLMClient(LLMClient):
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info(
             "LLM_REQUEST_COMPLETED",
-            extra={"model": self._model, "latency_ms": round(latency_ms, 1)},
+            extra={"model": model, "latency_ms": round(latency_ms, 1)},
         )
         return LLMResponse(
             text=text,
-            model=data.get("model", self._model),
+            model=data.get("model", model),
             latency_ms=latency_ms,
             raw=data,
         )
