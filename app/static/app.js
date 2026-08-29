@@ -26,20 +26,43 @@
   refreshHealth();
   setInterval(refreshHealth, 15000);
 
-  // -- Seletor de modelo LLM ------------------------------------------
+  // -- Seletor de modelo LLM + estado do serviço --------------------
   var modelSelect = $("model-select");
+  var llmBadge = $("llm-badge");
+
+  async function loadLlmStatus() {
+    try {
+      var s = await (await fetch("/api/llm/status")).json();
+      var label = (s.mode || "").toUpperCase();
+      if (s.cloud) label += " · cloud";
+      else label += " · local";
+      llmBadge.textContent = label;
+      llmBadge.dataset.kind = s.cloud ? "cloud" : "";
+      llmBadge.hidden = false;
+    } catch (e) { /* ignora */ }
+  }
+  loadLlmStatus();
+
   async function loadModels() {
     try {
       var data = await (await fetch("/api/llm/models")).json();
       modelSelect.innerHTML = "";
-      (data.models || []).forEach(function (m) {
+      var models = data.models || [];
+      models.forEach(function (m) {
         var o = document.createElement("option");
         o.value = m;
         o.textContent = m;
         modelSelect.appendChild(o);
       });
+      if (!models.length && data.active) {
+        var o = document.createElement("option");
+        o.value = data.active;
+        o.textContent = data.active;
+        modelSelect.appendChild(o);
+      }
       if (data.active) modelSelect.value = data.active;
-      modelSelect.disabled = (data.models || []).length < 2;
+      // desativa se só há 1 opção (nada para escolher)
+      modelSelect.disabled = modelSelect.options.length < 2;
     } catch (e) {
       modelSelect.disabled = true;
     }

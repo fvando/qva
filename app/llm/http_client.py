@@ -39,18 +39,39 @@ class HttpLLMClient(LLMClient):
         self._model = model
 
     async def list_models(self) -> list[str]:
-        """Modelos disponíveis no serviço (via `/api/tags` do Ollama).
+        """Modelos disponíveis no serviço.
 
-        Devolve `[]` se o serviço não expõe essa rota (não é Ollama)."""
+        Tenta `/api/tags` (Ollama) e depois `/v1/models` (OpenAI/OpenRouter/...).
+        Devolve `[]` se nenhuma rota responder."""
         base = self._settings.llm_base_url.rstrip("/")
+        headers = self._headers()
+
+        # Ollama
         try:
             resp = await self._get_client().get(f"{base}/api/tags", timeout=5.0)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
+            if resp.status_code == 200:
+                data = resp.json()
+                names = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+                if names:
+                    return sorted(names)
         except (httpx.HTTPError, ValueError):
-            return []
-        return sorted(m.get("name", "") for m in data.get("models", []) if m.get("name"))
+            pass
+
+        # OpenAI-style
+        for path in ("/v1/models", "/models"):
+            try:
+                resp = await self._get_client().get(
+                    f"{base}{path}", headers=headers, timeout=8.0
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data.get("data", data if isinstance(data, list) else [])
+                    names = [x.get("id", "") for x in items if isinstance(x, dict) and x.get("id")]
+                    if names:
+                        return sorted(names)
+            except (httpx.HTTPError, ValueError):
+                continue
+        return []
 
     # -- ciclo de vida do cliente httpx -----------------------------------
     def _get_client(self) -> httpx.AsyncClient:
@@ -170,10 +191,17 @@ class HttpLLMClient(LLMClient):
         )
 
     async def health(self) -> bool:
-        """Sonda barata: um GET ao host base. Não gasta uma inferência."""
-        base = self._settings.llm_base_url
-        try:
-            resp = await self._get_client().get(base, timeout=3.0)
-            return resp.status_code < 500
-        except httpx.HTTPError:
-            return False
+        """Sonda barata: verifica que o serviço está acessível (sem gastar
+        uma inferência). Para APIs cloud, um GET a `/v1/models` ou ao host.
+        Qualquer resposta HTTP (mesmo 401/404) significa "acessível"."""
+        base = self._settings.llm_base_url.rstrip("/")
+        headers = self._headers()
+        for url in (f"{base}/v1/models", f"{base}/api/tags", base):
+            try:
+                resp = await self._get_client().get(url, headers=headers, timeout=4.0)
+                # 2xx/3xx/4xx = o serviço respondeu; só 5xx / erro de rede = down
+                if resp.status_code < 500:
+                    return True
+            except httpx.HTTPError:
+                continue
+        return False

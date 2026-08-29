@@ -153,6 +153,19 @@ button.ghost {
   background: var(--surface-2);
   color: var(--text);
 }
+.badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge[data-kind="cloud"] {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 
 .camera-picker {
   display: flex;

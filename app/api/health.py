@@ -35,10 +35,13 @@ async def llm_status(
 ) -> dict:
     reachable = await llm.health()
     model = llm.model if isinstance(llm, HttpLLMClient) else settings.llm_model
+    is_cloud = settings.llm_base_url.startswith("https://") and "localhost" not in settings.llm_base_url
     return {
         "configured_url": settings.llm_url,
         "model": model,
+        "mode": settings.llm_mode,
         "supports_vision": settings.llm_supports_vision,
+        "cloud": is_cloud,
         "reachable": reachable,
     }
 
@@ -61,17 +64,20 @@ async def llm_models(
     definido). O modelo ativo é sempre incluído.
     """
     active = llm.model if isinstance(llm, HttpLLMClient) else settings.llm_model
-    available: list[str] = []
-    if isinstance(llm, HttpLLMClient):
-        available = await llm.list_models()
 
     allowed = _allowed_models(settings)
     if allowed is not None:
-        chosen = [m for m in available if m in allowed] or sorted(allowed)
+        # Allowlist explícita — não sondar o serviço (pode ter centenas).
+        chosen = sorted(allowed)
     else:
-        chosen = available
+        available = []
+        if isinstance(llm, HttpLLMClient):
+            available = await llm.list_models()
+        # Muitos serviços cloud expõem centenas de modelos — não faz sentido
+        # numa dropdown. Só listamos se forem poucos.
+        chosen = available if 0 < len(available) <= 40 else []
 
-    if active not in chosen:
+    if active and active not in chosen:
         chosen = [active, *chosen]
     return {"active": active, "models": chosen}
 
