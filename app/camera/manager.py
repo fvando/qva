@@ -11,13 +11,11 @@ from __future__ import annotations
 import logging
 import threading
 
-import cv2
-
 from app.camera.base import CameraError, CameraSource
 from app.camera.factory import build_camera
 from app.camera.file_camera import FileCamera
 from app.camera.rtsp import HTTPIPCamera, RTSPCamera
-from app.camera.usb import USBCamera, _open_any_backend
+from app.camera.usb import USBCamera, list_video_input_names, probe_device
 from app.config import CameraType, Settings
 
 logger = logging.getLogger(__name__)
@@ -76,14 +74,27 @@ class CameraManager(CameraSource):
         return self.description
 
     def list_devices(self) -> list[dict]:
-        """Sonda os índices USB e devolve os que respondem, mais a câmera ativa."""
-        found: list[dict] = []
-        for idx in range(_MAX_USB_PROBE):
-            cap = _open_any_backend(idx)
-            if cap is not None:
-                cap.release()
-                found.append({"kind": "usb", "target": str(idx), "label": f"Câmera USB {idx}"})
-        return found
+        """Lista as câmeras de vídeo disponíveis.
+
+        No Windows usa a enumeração DirectShow (`pygrabber`) — instantânea e
+        com os nomes reais. Sem ela, cai numa sonda por índice (mais lenta).
+        """
+        names = list_video_input_names()
+        if names is not None:
+            return [
+                {"kind": "usb", "target": str(i), "label": f"{name} (índice {i})"}
+                for i, name in enumerate(names)
+            ]
+        # Fallback: sondar índices em paralelo.
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=_MAX_USB_PROBE) as pool:
+            backends = list(pool.map(probe_device, range(_MAX_USB_PROBE)))
+        return [
+            {"kind": "usb", "target": str(i), "label": f"Câmera {i} (índice {i})"}
+            for i, be in enumerate(backends)
+            if be is not None
+        ]
 
 
 def _initial_target(settings: Settings) -> str:

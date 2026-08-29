@@ -29,10 +29,12 @@ _READ_ATTEMPTS = 5
 # sem sinal) e não um frame válido.
 _MIN_MEAN_BRIGHTNESS = 2.0
 
-# Backends a tentar, por ordem. No Windows, DirectShow costuma ser mais fiável
-# para webcams USB do que o MSMF por omissão.
+# Backends a tentar, por ordem. No Windows testámos que a câmera interna do
+# notebook responde por MSMF (não por DirectShow) e uma webcam USB responde
+# por DirectShow (não por MSMF) — por isso tentamos os dois, MSMF primeiro
+# (é o backend por omissão do Windows e o mais rápido a falhar quando não é).
 if sys.platform == "win32":
-    _BACKENDS = (cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY)
+    _BACKENDS = (cv2.CAP_MSMF, cv2.CAP_DSHOW, cv2.CAP_ANY)
 else:
     _BACKENDS = (cv2.CAP_ANY,)
 
@@ -58,6 +60,45 @@ def _open_any_backend(device: int | str) -> cv2.VideoCapture | None:
             if ok and frame is not None:
                 return cap
         cap.release()
+    return None
+
+
+def list_video_input_names() -> list[str] | None:
+    """Nomes dos dispositivos de vídeo, na ordem dos índices do OpenCV.
+
+    Usa `pygrabber` (DirectShow) no Windows — instantâneo e com nomes reais.
+    Devolve `None` se não for possível enumerar (outra plataforma, lib ausente).
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        from pygrabber.dshow_graph import FilterGraph
+    except ImportError:
+        return None
+    try:
+        return list(FilterGraph().get_input_devices())
+    except Exception:  # noqa: BLE001 - COM pode falhar; cai no fallback
+        return None
+
+
+def probe_device(index: int) -> str | None:
+    """Sonda rápida: devolve o nome do backend que lê um frame deste índice,
+    ou `None`. Usado para listar câmeras na UI sem bloquear muito tempo.
+
+    Só 2 tentativas de `read` por backend — um backend que abre mas não lê
+    depressa não é utilizável na prática."""
+    names = {cv2.CAP_MSMF: "MSMF", cv2.CAP_DSHOW: "DSHOW", cv2.CAP_ANY: "ANY"}
+    for backend in _BACKENDS:
+        cap = cv2.VideoCapture(index, backend)
+        try:
+            if not cap.isOpened():
+                continue
+            for _ in range(2):
+                ok, frame = cap.read()
+                if ok and frame is not None:
+                    return names.get(backend, str(backend))
+        finally:
+            cap.release()
     return None
 
 

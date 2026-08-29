@@ -63,21 +63,27 @@ def test_select_rejects_unavailable_and_keeps_old(monkeypatch):
     assert old.closed is False
 
 
-def test_list_devices_probes_usb(monkeypatch):
+def test_list_devices_uses_names_when_available(monkeypatch):
     m = _mgr(monkeypatch)
-
-    class Cap:
-        def release(self):
-            pass
-
-    # só o índice 0 e 1 "respondem"
     monkeypatch.setattr(
-        "app.camera.manager._open_any_backend",
-        lambda idx: Cap() if idx in (0, 1) else None,
+        "app.camera.manager.list_video_input_names",
+        lambda: ["Logi C270 HD WebCam", "HP 5MP Camera"],
     )
     devices = m.list_devices()
     assert [d["target"] for d in devices] == ["0", "1"]
-    assert all(d["kind"] == "usb" for d in devices)
+    assert devices[0]["label"].startswith("Logi C270")
+    assert devices[1]["label"].startswith("HP 5MP")
+
+
+def test_list_devices_falls_back_to_probe(monkeypatch):
+    m = _mgr(monkeypatch)
+    monkeypatch.setattr("app.camera.manager.list_video_input_names", lambda: None)
+    monkeypatch.setattr(
+        "app.camera.manager.probe_device",
+        lambda idx: "MSMF" if idx in (0, 1) else None,
+    )
+    devices = m.list_devices()
+    assert [d["target"] for d in devices] == ["0", "1"]
 
 
 # -- endpoints (via FakeCameraManager do conftest) --------------------
