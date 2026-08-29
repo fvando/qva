@@ -4,6 +4,20 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  // Elementos usados em vários blocos — declarados cedo para evitar
+  // referências a `undefined` por ordem de execução.
+  var img = $("preview-img");
+  var video = $("browser-video");
+  var live = $("live");
+  var kindSel = $("camera-kind");
+  var usbSel = $("camera-usb");
+  var urlInput = $("camera-url");
+  var applyBtn = $("camera-apply");
+  var camMsg = $("camera-msg");
+  var browserMode = false;
+  var mediaStream = null;
+  var facingMode = "environment";
+
   // -- Semáforo de status ------------------------------------------------
   function setDot(service, state) {
     var el = document.querySelector('.dot[data-service="' + service + '"]');
@@ -87,13 +101,6 @@
   });
 
   // -- Preview: imagem do servidor OU vídeo do dispositivo --------------
-  var img = $("preview-img");
-  var video = $("browser-video");
-  var live = $("live");
-  var browserMode = false;          // true = câmera deste dispositivo
-  var mediaStream = null;
-  var facingMode = "environment";   // câmera traseira por omissão
-
   function showSnapshot() { img.src = "/api/camera/frame?t=" + Date.now(); }
   function refreshPreview() {
     if (browserMode) return;
@@ -158,12 +165,6 @@
   }
 
   // -- Escolha de câmera ------------------------------------------------
-  var kindSel = $("camera-kind");
-  var usbSel = $("camera-usb");
-  var urlInput = $("camera-url");
-  var applyBtn = $("camera-apply");
-  var camMsg = $("camera-msg");
-
   function updatePickerFields() {
     var k = kindSel.value;
     usbSel.hidden = k !== "usb";
@@ -281,7 +282,10 @@
     ul.innerHTML = "";
     Object.keys(q.options || {}).forEach(function (k) {
       var li = document.createElement("li");
-      li.innerHTML = "<b>" + k + ")</b> " + q.options[k];
+      var b = document.createElement("b");
+      b.textContent = k + ") ";
+      li.appendChild(b);
+      li.appendChild(document.createTextNode(q.options[k]));
       ul.appendChild(li);
     });
     show("question-card");
@@ -309,6 +313,13 @@
     hide("error-card");
   }
 
+  function scrollToResult() {
+    var el = $("answer-card").hidden ? $("error-card") : $("answer-card");
+    if (!el.hidden && el.scrollIntoView) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
   // -- WebSocket: eventos do pipeline sem polling ------------------------
   function connectWS() {
     var proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -328,10 +339,12 @@
         renderQuestion(resp.question);
         renderAnswer(resp.result, resp.timing);
         setState("completed");
+        scrollToResult();
       } else if (event === "error") {
         $("error-text").textContent = data.reason || "erro desconhecido";
         show("error-card");
         setState("error");
+        scrollToResult();
       }
     };
     socket.onclose = function () { setTimeout(connectWS, 2000); };
@@ -378,12 +391,14 @@
         renderQuestion(s.question);
         renderAnswer(s.result, s.timing);
         setState("completed");
+        scrollToResult();
         return;
       }
       if (s.status === "error") {
         $("error-text").textContent = s.error || "erro desconhecido";
         show("error-card");
         setState("error");
+        scrollToResult();
         return;
       }
     }

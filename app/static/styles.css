@@ -1,5 +1,5 @@
-/* Question Vision Assistant — interface mobile (TASK-011).
-   Layout responsivo, mobile-first. Escuro por omissão. */
+/* Question Vision Assistant — interface (TASK-011).
+   Mobile-first, responsivo, escuro por omissão com fallback claro. */
 
 :root {
   --bg: #0f172a;
@@ -14,35 +14,49 @@
   --down: #ef4444;
   --warn: #f59e0b;
   --radius: 14px;
+  --touch: 44px; /* alvo mínimo de toque */
   color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* evita o zoom automático do iOS ao focar inputs */
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  padding: 0 1rem env(safe-area-inset-bottom) 1rem;
-  max-width: 34rem;
+  padding:
+    env(safe-area-inset-top)
+    max(0.9rem, env(safe-area-inset-right))
+    calc(1rem + env(safe-area-inset-bottom))
+    max(0.9rem, env(safe-area-inset-left));
+  max-width: 40rem;
   margin-inline: auto;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
+/* -- Cabeçalho ------------------------------------------------------- */
 header {
   position: sticky;
   top: 0;
   background: var(--bg);
-  padding: 1rem 0 0.75rem;
+  padding: 0.75rem 0 0.6rem;
   z-index: 10;
+  border-bottom: 1px solid var(--border);
 }
 
 h1 {
-  font-size: 1.15rem;
-  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
 }
 
 h2 {
@@ -51,34 +65,34 @@ h2 {
 }
 
 h3 {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
   margin: 0.9rem 0 0.25rem;
 }
 
-/* -- Status ------------------------------------------------------------- */
+/* -- Semáforo de status ---------------------------------------------- */
 .status {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex-wrap: wrap;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
 }
 
 .dot {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.55rem;
+  height: 0.55rem;
   border-radius: 50%;
   background: var(--muted);
   flex: none;
@@ -86,76 +100,33 @@ h3 {
 .dot[data-state="ok"] { background: var(--ok); }
 .dot[data-state="down"] { background: var(--down); }
 
-/* -- Cartões --------------------------------------------------------- */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.9rem 1rem;
-  margin: 0.75rem 0;
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.card.answer { border-color: var(--primary); }
-.card.error { border-color: var(--down); }
-
-#preview-img,
-#browser-video {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: contain;
-  background: #000;
-  border-radius: 10px;
-  display: block;
-}
-
-button.ghost {
-  width: 100%;
-  margin-top: 0.5rem;
-  padding: 0.6rem;
-  font-size: 0.85rem;
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
+/* -- Seletor de modelo -------------------------------------------- */
 .model-picker {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.55rem;
   font-size: 0.8rem;
   color: var(--muted);
 }
+.model-picker label {
+  flex: none;
+}
 .model-picker select {
   flex: 1;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.8rem;
-  border-radius: 8px;
+  min-width: 0;
+  height: var(--touch);
+  padding: 0 0.6rem;
+  font-size: 16px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
 }
 .badge {
+  flex: none;
   font-size: 0.7rem;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -167,48 +138,110 @@ button.ghost {
   color: var(--primary);
 }
 
-.camera-picker {
+/* -- Cartões --------------------------------------------------------- */
+main {
+  padding-top: 0.75rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  margin: 0.7rem 0;
+}
+
+.card-head {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
   flex-wrap: wrap;
+}
+
+.card.answer { border-color: var(--primary); }
+.card.error { border-color: var(--down); }
+
+/* -- Preview -------------------------------------------------------- */
+#preview-img,
+#browser-video {
+  width: 100%;
+  max-height: 40vh;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #000;
+  border-radius: 10px;
+  display: block;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
   gap: 0.4rem;
-  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-height: var(--touch);
+}
+.switch input {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* -- Escolha de câmera ------------------------------------------- */
+.camera-picker {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
 }
 .camera-picker select,
 .camera-picker input,
 .camera-picker button {
-  padding: 0.5rem 0.6rem;
-  font-size: 0.85rem;
-  border-radius: 8px;
+  width: 100%;
+  height: var(--touch);
+  padding: 0 0.7rem;
+  font-size: 16px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
-}
-.camera-picker input {
-  flex: 1 1 12rem;
 }
 .camera-picker button {
   background: var(--primary);
   color: #fff;
   border: 0;
+  font-weight: 600;
   cursor: pointer;
 }
+.camera-picker button:active { background: var(--primary-press); }
+
 .camera-msg {
   font-size: 0.8rem;
   color: var(--muted);
-  margin: 0.4rem 0 0;
-  min-height: 1em;
+  margin: 0.5rem 0 0;
+  min-height: 1.2em;
 }
-.camera-msg[data-kind="error"] {
-  color: var(--down);
-}
-.camera-msg[data-kind="ok"] {
-  color: var(--ok);
+.camera-msg[data-kind="error"] { color: var(--down); }
+.camera-msg[data-kind="ok"] { color: var(--ok); }
+
+button.ghost {
+  width: 100%;
+  min-height: var(--touch);
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
 }
 
-/* -- Banner de estado ------------------------------------------------- */
+/* -- Banner de estado --------------------------------------------- */
 .banner {
-  margin: 0.5rem 0;
-  padding: 0.6rem 0.9rem;
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.9rem;
   border-radius: 10px;
   font-size: 0.9rem;
   background: var(--surface-2);
@@ -223,29 +256,41 @@ button.ghost {
 .banner[data-state="completed"] { border-color: var(--ok); }
 .banner[data-state="error"] { border-color: var(--down); }
 
-/* -- Botão ----------------------------------------------------------- */
+/* -- Botão principal ------------------------------------------- */
 button.primary {
   width: 100%;
+  min-height: 52px;
+  margin: 0.2rem 0 0.4rem;
   padding: 0.95rem;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: #fff;
   background: var(--primary);
   border: 0;
   border-radius: var(--radius);
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 button.primary:active { background: var(--primary-press); }
-button.primary:disabled { opacity: 0.55; cursor: default; }
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 
-/* -- Questão / resposta -------------------------------------------- */
+/* -- Questão / resposta ----------------------------------------- */
 .tag,
 .confidence {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   background: var(--surface-2);
   border-radius: 999px;
-  padding: 0.15rem 0.55rem;
+  padding: 0.2rem 0.55rem;
   color: var(--muted);
+  white-space: nowrap;
+}
+
+#question-text,
+#explanation {
+  overflow-wrap: anywhere;
 }
 
 #question-options {
@@ -254,15 +299,17 @@ button.primary:disabled { opacity: 0.55; cursor: default; }
   margin: 0.5rem 0 0;
 }
 #question-options li {
-  padding: 0.35rem 0;
+  padding: 0.5rem 0;
   border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
 }
 #question-options li b { color: var(--text); }
 
 .answer-line {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 700;
   margin: 0.25rem 0;
+  overflow-wrap: anywhere;
 }
 
 .warn {
@@ -276,20 +323,34 @@ button.primary:disabled { opacity: 0.55; cursor: default; }
 
 .timing {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   margin-top: 0.75rem;
 }
 
 [hidden] { display: none !important; }
 
+/* -- Ecrãs maiores: coluna única, mais larga e com o preview
+   contido para não dominar a página. -------------------------- */
+@media (min-width: 40rem) {
+  body { max-width: 42rem; }
+  #preview-img,
+  #browser-video { max-height: 22rem; }
+}
+
+/* -- Tema claro -------------------------------------------------- */
 @media (prefers-color-scheme: light) {
   :root {
     --bg: #f8fafc;
     --surface: #fff;
-    --surface-2: #f1f5f9;
+    --surface-2: #eef2f7;
     --text: #0f172a;
     --muted: #64748b;
     --border: #e2e8f0;
     color-scheme: light;
   }
+}
+
+/* -- Menos animação para quem prefere ------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }
