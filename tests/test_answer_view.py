@@ -43,6 +43,15 @@ def test_answer_js_only_receives(client):
     assert "WebSocket" in js
 
 
+def test_answer_is_chat_feed(client):
+    html = client.get("/answer").text
+    assert 'id="feed"' in html
+    assert 'id="tpl-msg"' in html  # template de mensagem
+    js = client.get("/answer.js").text
+    assert "seen" in js  # dedup por id — não repete a última ao reconectar
+    assert "addAnswer" in js
+
+
 # -- reenvio da última resposta -----------------------------------
 async def test_new_connection_gets_last_result():
     m = WebSocketManager()

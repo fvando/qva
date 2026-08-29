@@ -7,7 +7,7 @@
  *    Uma resposta de questão em cache seria pior que erro nenhum.
  */
 
-var CACHE = "qva-shell-v3";
+var CACHE = "qva-shell-v4";
 var SHELL = [
   "/",
   "/index.html",

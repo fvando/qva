@@ -1,4 +1,4 @@
-// QVA — app de consulta. Só recebe respostas via WebSocket e mostra-as.
+// QVA — app de consulta (estilo chat). Só recebe respostas via WebSocket.
 (function () {
   "use strict";
 
@@ -9,6 +9,12 @@
   }
 
   var $ = function (id) { return document.getElementById(id); };
+  var feed = $("feed");
+  var tplMsg = $("tpl-msg");
+  var tplErr = $("tpl-error");
+
+  // Evita duplicar a mesma resposta (o servidor reenvia a última ao ligar).
+  var seen = Object.create(null);
 
   function setLink(state, text) {
     var dot = document.querySelector('.dot[data-service="link"]');
@@ -16,50 +22,79 @@
     $("link-text").textContent = text;
   }
 
-  function hide(id) { $(id).hidden = true; }
-  function show(id) { $(id).hidden = false; }
+  function nowLabel() {
+    var d = new Date();
+    return d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  }
 
-  function renderQuestion(q) {
-    if (!q) return;
-    $("question-type").textContent = q.type || "";
-    $("question-text").textContent = q.question || "";
-    var ul = $("question-options");
-    ul.innerHTML = "";
+  function atBottom() {
+    return window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+  }
+
+  function append(node) {
+    var empty = $("feed-empty");
+    if (empty) empty.remove();
+    var stick = atBottom();
+    feed.appendChild(node);
+    if (stick) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  function addAnswer(resp) {
+    var id = resp.id;
+    if (id && seen[id]) return;
+    if (id) seen[id] = true;
+
+    var q = resp.question || {};
+    var r = resp.result || {};
+    var t = resp.timing || {};
+
+    var el = tplMsg.content.firstElementChild.cloneNode(true);
+    var letter = r.answer || "";
+    var text = r.answer_text ? " " + r.answer_text : "";
+    el.querySelector(".msg-answer").textContent =
+      letter ? letter + ")" + text : (text.trim() || "—");
+    el.querySelector(".msg-conf").textContent =
+      r.confidence != null ? Math.round(r.confidence * 100) + "%" : "";
+    el.querySelector(".msg-question").textContent = q.question || "";
+
+    var ul = el.querySelector(".msg-options");
     Object.keys(q.options || {}).forEach(function (k) {
       var li = document.createElement("li");
       var b = document.createElement("b");
       b.textContent = k + ") ";
       li.appendChild(b);
       li.appendChild(document.createTextNode(q.options[k]));
+      if (k === r.answer) li.className = "is-answer";
       ul.appendChild(li);
     });
-    show("question-card");
-    hide("idle");
+
+    el.querySelector(".msg-expl").textContent = r.explanation || "";
+    el.querySelector(".msg-time").textContent =
+      nowLabel() + (t.total_ms ? " · " + Math.round(t.total_ms / 1000) + "s" : "");
+    append(el);
   }
 
-  function renderAnswer(r, timing) {
-    if (!r) return;
-    var letter = r.answer || "";
-    var text = r.answer_text ? " " + r.answer_text : "";
-    $("answer-line").textContent = letter ? letter + ")" + text : text.trim() || "—";
-    $("confidence").textContent =
-      r.confidence != null ? Math.round(r.confidence * 100) + "%" : "";
-    $("explanation").textContent = r.explanation || "";
-    $("ambiguous").hidden = !r.ambiguous;
-    if (timing) {
-      $("meta").textContent = "Resolvido em " + Math.round(timing.total_ms / 1000) + " s";
-    }
-    show("answer-card");
-    hide("idle");
-    if ($("answer-card").scrollIntoView) {
-      $("answer-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+  function addError(reason, capture_id) {
+    if (capture_id && seen["err:" + capture_id]) return;
+    if (capture_id) seen["err:" + capture_id] = true;
+    var el = tplErr.content.firstElementChild.cloneNode(true);
+    el.querySelector(".msg-question").textContent = reason || "erro desconhecido";
+    el.querySelector(".msg-time").textContent = nowLabel();
+    append(el);
   }
 
-  function reset() {
-    hide("question-card");
-    hide("answer-card");
-    hide("error-card");
+  function setPending(on) {
+    var p = $("pending");
+    if (on && !p) {
+      var el = document.createElement("p");
+      el.id = "pending";
+      el.className = "feed-pending";
+      el.textContent = "A resolver a nova questão…";
+      feed.appendChild(el);
+      if (atBottom()) window.scrollTo({ top: document.body.scrollHeight });
+    } else if (!on && p) {
+      p.remove();
+    }
   }
 
   function connect() {
@@ -70,24 +105,15 @@
 
     socket.onmessage = function (ev) {
       var msg = JSON.parse(ev.data);
-      var event = msg.event;
-      var data = msg.data || {};
-
-      if (event === "capture_started") {
-        reset();
-        show("idle");
-        $("idle").textContent = "A resolver a nova questão…";
-      } else if (event === "question_detected") {
-        renderQuestion(data.question);
-      } else if (event === "answer_ready") {
-        var resp = data.response || {};
-        renderQuestion(resp.question);
-        renderAnswer(resp.result, resp.timing);
-      } else if (event === "error") {
-        reset();
-        $("error-text").textContent = data.reason || "erro desconhecido";
-        show("error-card");
-        hide("idle");
+      var d = msg.data || {};
+      if (msg.event === "capture_started") {
+        setPending(true);
+      } else if (msg.event === "answer_ready") {
+        setPending(false);
+        addAnswer(d.response || {});
+      } else if (msg.event === "error") {
+        setPending(false);
+        addError(d.reason, d.capture_id);
       }
     };
 

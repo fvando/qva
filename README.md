@@ -74,6 +74,29 @@ python -m app
 
 Abrir `http://localhost:8080/`.
 
+### Duas interfaces
+
+| URL | Para quê |
+|---|---|
+| `/` | **Processamento** — escolher câmera, capturar, ver resultado (PC junto da câmera) |
+| `/answer` | **Consulta** — feed estilo chat com todas as respostas (telemóvel) |
+
+### Aceder do telemóvel
+
+**Mesma Wi-Fi:** `http://<ip-do-pc>:8080/answer` (abrir a porta 8080 na
+firewall; alguns routers isolam dispositivos — ver abaixo).
+
+**De qualquer rede / se o router isolar dispositivos:** túnel Cloudflare.
+
+```powershell
+.\tunnel.ps1 start     # arranca o túnel, imprime o URL público (https://...trycloudflare.com)
+.\tunnel.ps1 status    # ver estado e URL
+.\tunnel.ps1 stop      # desligar
+```
+
+O `tunnel.ps1` descarrega o `cloudflared` na primeira execução. O URL muda a
+cada arranque (túnel gratuito sem conta). Funciona de qualquer rede, é HTTPS.
+
 ### Docker
 
 ```bash

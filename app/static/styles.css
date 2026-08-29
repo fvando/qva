@@ -329,24 +329,119 @@ button.primary:disabled {
 
 [hidden] { display: none !important; }
 
-/* -- App de consulta (/answer): tipografia maior, foco na resposta -- */
-body.answer-only .answer-line { font-size: 1.5rem; }
-body.answer-only #explanation { font-size: 1rem; }
-body.answer-only #question-text { font-size: 1rem; }
-body.answer-only .confidence {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--primary);
-  background: transparent;
-  padding: 0;
+/* ==================================================================
+   App de consulta (/answer) — feed estilo chat
+   ================================================================== */
+body.answer-only {
+  max-width: 42rem;
+  min-height: 100vh;
 }
 
-/* em ecrã largo (a app vive no telemóvel, mas fica decente no PC também) */
+.answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.answer-head h1 { margin: 0; }
+
+#feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+.feed-empty,
+.feed-pending {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}
+.feed-pending {
+  padding: 0.75rem 0;
+  color: var(--primary);
+}
+
+/* -- cada resposta é uma "mensagem" ---------------------------- */
+.msg {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+.msg.msg-err {
+  border-left-color: var(--down);
+}
+
+.msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+.msg-answer {
+  font-size: 1.25rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.msg-err .msg-answer {
+  font-size: 1rem;
+  color: var(--down);
+}
+.msg-conf {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.msg-question {
+  margin: 0.2rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.msg-options {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+.msg-options li {
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.msg-options li.is-answer {
+  color: var(--text);
+  font-weight: 600;
+}
+.msg-options li:not(.is-answer) {
+  color: var(--muted);
+}
+
+.msg-expl {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.msg-time {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (min-width: 48rem) {
   body.answer-only {
-    max-width: 34rem;
+    max-width: 36rem;
     border-inline: 1px solid var(--border);
-    min-height: 100vh;
   }
 }
 

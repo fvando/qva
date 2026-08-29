@@ -16,42 +16,39 @@
   </head>
   <body class="answer-only">
     <header>
-      <h1>Respostas</h1>
-      <div class="status">
-        <span class="chip"><span class="dot" data-service="link"></span> <span id="link-text">a ligar…</span></span>
+      <div class="answer-head">
+        <h1>Respostas</h1>
+        <span class="chip">
+          <span class="dot" data-service="link"></span>
+          <span id="link-text">a ligar…</span>
+        </span>
       </div>
     </header>
 
-    <main>
-      <p id="idle" class="banner" data-state="idle">
-        À espera da próxima questão…
-      </p>
-
-      <section class="card" id="question-card" hidden>
-        <div class="card-head">
-          <h2>Questão <span id="question-type" class="tag"></span></h2>
-        </div>
-        <p id="question-text"></p>
-        <ul id="question-options"></ul>
-      </section>
-
-      <section class="card answer" id="answer-card" hidden>
-        <div class="card-head">
-          <h2>Resposta</h2>
-          <span id="confidence" class="confidence"></span>
-        </div>
-        <p id="answer-line" class="answer-line"></p>
-        <div id="ambiguous" class="warn" hidden>⚠️ Resposta ambígua — ver explicação.</div>
-        <h3>Explicação</h3>
-        <p id="explanation"></p>
-        <p id="meta" class="timing"></p>
-      </section>
-
-      <section class="card error" id="error-card" hidden>
-        <h2>Não foi possível resolver</h2>
-        <p id="error-text"></p>
-      </section>
+    <main id="feed">
+      <p class="feed-empty" id="feed-empty">À espera da primeira questão…</p>
     </main>
+
+    <template id="tpl-msg">
+      <article class="msg">
+        <div class="msg-head">
+          <span class="msg-answer"></span>
+          <span class="msg-conf"></span>
+        </div>
+        <p class="msg-question"></p>
+        <ul class="msg-options"></ul>
+        <p class="msg-expl"></p>
+        <time class="msg-time"></time>
+      </article>
+    </template>
+
+    <template id="tpl-error">
+      <article class="msg msg-err">
+        <div class="msg-head"><span class="msg-answer">Não resolvido</span></div>
+        <p class="msg-question"></p>
+        <time class="msg-time"></time>
+      </article>
+    </template>
 
     <script src="/answer.js"></script>
   </body>
