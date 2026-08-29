@@ -123,14 +123,26 @@ def _mjpeg_part(jpeg: bytes) -> bytes:
 
 async def mjpeg_frames(camera: CameraSource, max_frames: int | None = None):
     """Gerador de partes MJPEG. `max_frames=None` = infinito (uso real);
-    limitado nos testes para não bloquear."""
+    limitado nos testes para não bloquear. Nunca propaga uma exceção — um
+    erro de câmera encerra o stream, não derruba o servidor."""
     sent = 0
+    consecutive_errors = 0
     while max_frames is None or sent < max_frames:
         try:
             jpeg = await _grab_jpeg(camera)
-        except (CameraError, ValueError):
-            break  # câmera indisponível a meio do stream: encerra sem rebentar
-        yield _mjpeg_part(jpeg)
+            consecutive_errors = 0
+        except asyncio.CancelledError:
+            raise  # cliente desligou — deixa o framework tratar
+        except Exception:  # noqa: BLE001
+            consecutive_errors += 1
+            if consecutive_errors >= 5:
+                break  # câmera em baixo — encerra o stream
+            await asyncio.sleep(0.5)
+            continue
+        try:
+            yield _mjpeg_part(jpeg)
+        except (asyncio.CancelledError, GeneratorExit):
+            raise
         sent += 1
         await asyncio.sleep(_STREAM_INTERVAL_S)
 

@@ -133,24 +133,32 @@ class CameraManager(CameraSource):
         """Lista as câmeras de vídeo disponíveis.
 
         No Windows usa a enumeração DirectShow (`pygrabber`) — instantânea e
-        com os nomes reais. Sem ela, cai numa sonda por índice (mais lenta).
+        com os nomes reais. Sem ela, cai numa sonda por índice.
+
+        Nunca levanta exceção — devolve `[]` no pior caso.
         """
-        names = list_video_input_names()
+        try:
+            names = list_video_input_names()
+        except Exception:  # noqa: BLE001
+            names = None
         if names is not None:
             return [
                 {"kind": "usb", "target": str(i), "label": f"{name} (índice {i})"}
                 for i, name in enumerate(names)
             ]
-        # Fallback: sondar índices em paralelo.
-        from concurrent.futures import ThreadPoolExecutor
 
-        with ThreadPoolExecutor(max_workers=_MAX_USB_PROBE) as pool:
-            backends = list(pool.map(probe_device, range(_MAX_USB_PROBE)))
-        return [
-            {"kind": "usb", "target": str(i), "label": f"Câmera {i} (índice {i})"}
-            for i, be in enumerate(backends)
-            if be is not None
-        ]
+        # Fallback: sondar índices (em série; abrir VideoCapture em paralelo
+        # noutras threads é instável no Windows).
+        found: list[dict] = []
+        for idx in range(_MAX_USB_PROBE):
+            try:
+                if probe_device(idx) is not None:
+                    found.append(
+                        {"kind": "usb", "target": str(idx), "label": f"Câmera {idx}"}
+                    )
+            except Exception:  # noqa: BLE001
+                break
+        return found
 
 
 def _safe_close(cam: CameraSource) -> None:

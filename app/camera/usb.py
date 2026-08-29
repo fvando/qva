@@ -71,6 +71,9 @@ def list_video_input_names() -> list[str] | None:
 
     Usa `pygrabber` (DirectShow) no Windows — instantâneo e com nomes reais.
     Devolve `None` se não for possível enumerar (outra plataforma, lib ausente).
+
+    `pygrabber` usa COM; quando chamado numa thread do pool (asyncio.to_thread)
+    o COM não está inicializado nessa thread, por isso inicializamo-lo aqui.
     """
     if sys.platform != "win32":
         return None
@@ -78,10 +81,29 @@ def list_video_input_names() -> list[str] | None:
         from pygrabber.dshow_graph import FilterGraph
     except ImportError:
         return None
+
+    co_initialized = False
+    try:
+        import pythoncom  # vem com pywin32/comtypes
+
+        try:
+            pythoncom.CoInitialize()
+            co_initialized = True
+        except Exception:  # noqa: BLE001 - já inicializado nesta thread
+            pass
+    except ImportError:
+        pass
+
     try:
         return list(FilterGraph().get_input_devices())
     except Exception:  # noqa: BLE001 - COM pode falhar; cai no fallback
         return None
+    finally:
+        if co_initialized:
+            try:
+                pythoncom.CoUninitialize()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def probe_device(index: int) -> str | None:
