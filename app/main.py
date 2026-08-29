@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
@@ -85,6 +86,11 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router)
     app.include_router(history.router)
     app.include_router(websocket.router)
+
+    # App de consulta: URL limpo /answer -> answer.html
+    @app.get("/answer", include_in_schema=False)
+    async def answer_page() -> FileResponse:
+        return FileResponse(_STATIC_DIR / "answer.html")
 
     if _STATIC_DIR.is_dir():
         app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")

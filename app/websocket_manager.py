@@ -1,7 +1,11 @@
 """`WebSocketManager` — canal de eventos em tempo real (TASK-010).
 
 Mantém o conjunto de ligações WebSocket ativas e faz broadcast dos eventos do
-pipeline. O telemóvel recebe `answer_ready` sem fazer polling.
+pipeline. A app de consulta recebe `answer_ready` sem fazer polling.
+
+Guarda também o último resultado (`answer_ready` / `error`): um cliente que se
+ligue depois — ou que reconecte após uma queda de rede — recebe-o de imediato,
+para não perder a resposta.
 
 Eventos (secção 15 do prompt):
   capture_started | question_detected | answer_ready | error
@@ -15,6 +19,9 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
+# Eventos cujo último valor vale a pena reenviar a quem liga.
+_STICKY_EVENTS = ("answer_ready", "error")
+
 
 class WebSocketLike(Protocol):
     async def accept(self) -> None: ...
@@ -25,16 +32,23 @@ class WebSocketManager:
     def __init__(self) -> None:
         self._connections: set[WebSocketLike] = set()
         self._lock = asyncio.Lock()
+        self._last_result: dict | None = None
 
     @property
     def connection_count(self) -> int:
         return len(self._connections)
 
-    async def connect(self, websocket: WebSocketLike) -> None:
+    async def connect(self, websocket: WebSocketLike, *, replay_last: bool = True) -> None:
         await websocket.accept()
         async with self._lock:
             self._connections.add(websocket)
+            last = self._last_result
         logger.info("WS_CONNECT", extra={"model": str(self.connection_count)})
+        if replay_last and last is not None:
+            try:
+                await websocket.send_json(last)
+            except Exception:  # noqa: BLE001
+                await self.disconnect(websocket)
 
     async def disconnect(self, websocket: WebSocketLike) -> None:
         async with self._lock:
@@ -49,6 +63,8 @@ class WebSocketManager:
         """
         message = {"event": event, "data": data or {}}
         async with self._lock:
+            if event in _STICKY_EVENTS:
+                self._last_result = message
             targets = list(self._connections)
 
         dead: list[WebSocketLike] = []
@@ -63,3 +79,18 @@ class WebSocketManager:
                 for ws in dead:
                     self._connections.discard(ws)
             logger.info("WS_PRUNED", extra={"model": str(len(dead))})
+
+    async def resend_last(self) -> bool:
+        """Reenvia o último resultado a todas as ligações. Devolve `False` se
+        ainda não houve nenhum."""
+        async with self._lock:
+            last = self._last_result
+            targets = list(self._connections)
+        if last is None:
+            return False
+        for ws in targets:
+            try:
+                await ws.send_json(last)
+            except Exception:  # noqa: BLE001
+                pass
+        return True

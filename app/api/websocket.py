@@ -1,8 +1,7 @@
-"""Endpoint WebSocket `WS /ws` (TASK-010).
+"""Endpoint WebSocket `WS /ws` + reenvio da última resposta (TASK-010).
 
-O cliente liga-se e fica à escuta. Não precisa de enviar nada — o servidor
-empurra os eventos do pipeline. Recebemos mensagens só para detetar a
-desconexão (e ignoramos o conteúdo).
+O cliente liga-se e fica à escuta — ao ligar recebe já o último resultado
+(se houver), para a app de consulta que chega atrasada não perder nada.
 """
 
 from __future__ import annotations
@@ -29,3 +28,13 @@ async def ws(
         await manager.disconnect(websocket)
     except Exception:  # noqa: BLE001 - garante a limpeza em qualquer falha
         await manager.disconnect(websocket)
+
+
+@router.post("/api/answer/resend", tags=["answer"])
+async def resend_last_answer(
+    manager: WebSocketManager = Depends(get_websocket_manager),
+) -> dict:
+    """Reenvia a última resposta a todos os clientes ligados — útil quando a
+    app de consulta se ligou depois da captura ou perdeu a mensagem."""
+    sent = await manager.resend_last()
+    return {"resent": sent}

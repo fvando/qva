@@ -329,6 +329,19 @@ button.primary:disabled {
 
 [hidden] { display: none !important; }
 
+/* -- App de consulta (/answer): tipografia maior, foco na resposta -- */
+body.answer-only .answer-line { font-size: 1.5rem; }
+body.answer-only #explanation { font-size: 1rem; }
+body.answer-only #question-text { font-size: 1rem; }
+body.answer-only .confidence {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: transparent;
+  padding: 0;
+}
+.dot[data-service="link"] { background: var(--muted); }
+
 /* -- Ecrãs maiores: coluna única, mais larga e com o preview
    contido para não dominar a página. -------------------------- */
 @media (min-width: 40rem) {

@@ -320,6 +320,24 @@
     hide("error-card");
   }
 
+  var resendBtn = $("resend");
+  if (resendBtn) {
+    resendBtn.addEventListener("click", async function () {
+      resendBtn.disabled = true;
+      var original = resendBtn.textContent;
+      try {
+        await fetch("/api/answer/resend", { method: "POST" });
+        resendBtn.textContent = "Reenviado ✓";
+      } catch (e) {
+        resendBtn.textContent = "Falhou — tentar de novo";
+      }
+      setTimeout(function () {
+        resendBtn.textContent = original;
+        resendBtn.disabled = false;
+      }, 1500);
+    });
+  }
+
   function scrollToResult() {
     var el = $("answer-card").hidden ? $("error-card") : $("answer-card");
     if (!el.hidden && el.scrollIntoView) {
