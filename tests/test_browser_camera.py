@@ -30,12 +30,15 @@ def test_set_and_capture_frame():
     assert frame.shape == (60, 80, 3)
 
 
-def test_capture_returns_independent_copy():
+def test_capture_consumes_frame():
+    """Um frame só serve uma captura — a segunda falha até novo upload."""
     cam = BrowserCamera()
     cam.set_frame_jpeg(_jpeg())
-    a = cam.capture()
-    a[0, 0] = [0, 0, 0]
-    assert not np.array_equal(cam.capture()[0, 0], a[0, 0])
+    cam.capture()  # ok
+    with pytest.raises(CameraError):
+        cam.capture()  # já foi consumido
+    cam.set_frame_jpeg(_jpeg())
+    cam.capture()  # ok de novo
 
 
 def test_invalid_jpeg_raises():

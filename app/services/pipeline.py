@@ -21,6 +21,7 @@ Garantias:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from contextlib import contextmanager
@@ -90,7 +91,10 @@ class QuestionPipeline:
             with _step(timing, "capture_ms"):
                 if frame is None:
                     frame = await asyncio.to_thread(self._capture_frame)
-            logger.info("CAPTURE_COMPLETED", extra=log_extra)
+            # hash curto do frame — para confirmar nos logs que cada captura usa
+            # uma imagem diferente (diagnóstico de "resposta de imagem antiga").
+            fp = hashlib.sha1(frame.tobytes()).hexdigest()[:12] if frame is not None else "none"
+            logger.info("CAPTURE_COMPLETED", extra={**log_extra, "frame": fp})
 
             # 2. Processamento de imagem (OpenCV -> thread) -------------
             self._registry.set_state(capture_id, CaptureState.PROCESSING_IMAGE)

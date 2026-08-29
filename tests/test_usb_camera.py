@@ -28,6 +28,9 @@ class _FakeCap:
     def isOpened(self):
         return self._opened
 
+    def grab(self):
+        return True
+
     def read(self):
         if not self._frames:
             return False, None

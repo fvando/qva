@@ -105,7 +105,11 @@ async def camera_frame(camera: CameraSource = Depends(get_camera)) -> Response:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
         ) from exc
-    return Response(content=jpeg, media_type="image/jpeg")
+    return Response(
+        content=jpeg,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
 
 
 def _mjpeg_part(jpeg: bytes) -> bytes:

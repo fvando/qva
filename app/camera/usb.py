@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 _WARMUP_FRAMES = 5
 # Tentativas de leitura antes de desistir (o primeiro read pode falhar).
 _READ_ATTEMPTS = 5
+# Frames a descartar antes de cada captura — o driver mantém uma fila interna e
+# `read()` devolveria uma imagem já velha se não a esvaziássemos.
+_FLUSH_FRAMES = 3
 # Abaixo deste brilho médio o frame é considerado "preto" (câmera tapada ou
 # sem sinal) e não um frame válido.
 _MIN_MEAN_BRIGHTNESS = 2.0
@@ -123,6 +126,11 @@ class USBCamera(CameraSource):
     def capture(self) -> np.ndarray:
         if self._cap is None or not self._cap.isOpened():
             raise CameraError("Câmera USB não está aberta; chamar open() primeiro")
+
+        # Descarta frames em buffer para apanhar a imagem ATUAL, não uma antiga
+        # que ficou na fila interna do driver desde a última captura.
+        for _ in range(_FLUSH_FRAMES):
+            self._cap.grab()
 
         frame = None
         for _ in range(_READ_ATTEMPTS):

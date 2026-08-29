@@ -74,6 +74,9 @@ def _bright_cap(events=None):
         def isOpened(self):
             return True
 
+        def grab(self):
+            return True
+
         def read(self):
             return True, np.full((4, 4, 3), 200, dtype=np.uint8)
 

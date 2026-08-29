@@ -45,16 +45,21 @@ class BrowserCamera(CameraSource):
         pass  # nada a abrir
 
     def capture(self) -> np.ndarray:
+        """Devolve o último frame enviado E consome-o — um frame só serve uma
+        captura. Assim nunca se resolve uma questão com um frame antigo se o
+        upload seguinte falhar."""
         with self._lock:
             frame = self._frame
             age = time.monotonic() - self._ts
+            self._frame = None  # consumido
+            self._ts = 0.0
         if frame is None:
             raise CameraError(
-                "nenhum frame do browser ainda — permite o acesso à câmera no dispositivo"
+                "nenhum frame novo do browser — reenvia a imagem da câmera do dispositivo"
             )
         if age > _FRAME_TTL_S:
-            raise CameraError("o último frame do browser é demasiado antigo")
-        return frame.copy()
+            raise CameraError("o frame do browser é demasiado antigo — captura de novo")
+        return frame
 
     def close(self) -> None:
         with self._lock:
