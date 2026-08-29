@@ -16,9 +16,11 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-# -- Limiares de qualidade (ajustáveis; começam conservadores) --------------
-# Variância do Laplaciano: abaixo disto a imagem está desfocada.
-MIN_SHARPNESS = 60.0
+# -- Limiares de qualidade -------------------------------------------------
+# Variância do Laplaciano: abaixo disto a imagem está desfocada. Uma webcam a
+# apontar a um ecrã nunca é tão nítida como um documento digitalizado, por isso
+# o limiar é baixo — o objetivo é só barrar fotos claramente tremidas/vazias.
+MIN_SHARPNESS = 25.0
 # Brilho médio (0-255): fora deste intervalo está escura/queimada demais.
 # O limite superior é alto de propósito — um documento/tela bem iluminado tem
 # fundo perto do branco; só rejeitamos quando está mesmo "estourado".
@@ -97,8 +99,8 @@ def find_screen_quad(gray: np.ndarray) -> np.ndarray | None:
     Devolve os 4 cantos (float32) ou `None` se não houver candidato razoável.
     """
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blurred, 50, 150)
-    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+    edges = cv2.Canny(blurred, 40, 130)
+    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=2)
 
     contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
@@ -109,29 +111,46 @@ def find_screen_quad(gray: np.ndarray) -> np.ndarray | None:
     margin = 3  # px — cantos colados à borda = moldura do frame, não a tela
     best: np.ndarray | None = None
     best_area = 0.0
-    for c in sorted(contours, key=cv2.contourArea, reverse=True)[:10]:
+    for c in sorted(contours, key=cv2.contourArea, reverse=True)[:15]:
         area = cv2.contourArea(c)
-        # Ignora contornos minúsculos (< 15%) e o frame quase inteiro (> 98%).
-        if area < 0.15 * img_area or area > 0.98 * img_area:
+        # Área mínima 8% (o ecrã pode ocupar pouco da foto), máx. 98%.
+        if area < 0.08 * img_area or area > 0.98 * img_area:
             continue
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-        if len(approx) != 4 or not cv2.isContourConvex(approx):
+        # Aproxima o contorno; tolera algum ruído nas bordas (reflexo, sombra).
+        approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+        quad = _quad_from_approx(approx)
+        if quad is None:
             continue
-        pts = approx.reshape(4, 2).astype(np.float32)
         # Rejeita se todos os cantos estão encostados às bordas da imagem.
         on_border = np.all(
-            (pts[:, 0] <= margin)
-            | (pts[:, 0] >= w - 1 - margin)
-            | (pts[:, 1] <= margin)
-            | (pts[:, 1] >= h - 1 - margin)
+            (quad[:, 0] <= margin)
+            | (quad[:, 0] >= w - 1 - margin)
+            | (quad[:, 1] <= margin)
+            | (quad[:, 1] >= h - 1 - margin)
         )
         if on_border:
             continue
         if area > best_area:
-            best = pts
+            best = quad
             best_area = area
     return best
+
+
+def _quad_from_approx(approx: np.ndarray) -> np.ndarray | None:
+    """Reduz um contorno aproximado a 4 cantos.
+
+    - 4 vértices convexos: usa diretamente.
+    - 5 a 8 vértices: usa o retângulo rodado de área mínima (`minAreaRect`) —
+      um ecrã visto em perspetiva ligeira dá frequentemente 5-6 vértices.
+    """
+    pts = approx.reshape(-1, 2).astype(np.float32)
+    if len(pts) == 4 and cv2.isContourConvex(approx):
+        return pts
+    if 4 < len(pts) <= 8:
+        box = cv2.boxPoints(cv2.minAreaRect(pts))
+        return box.astype(np.float32)
+    return None
 
 
 def warp_to_rect(image: np.ndarray, quad: np.ndarray) -> np.ndarray:
