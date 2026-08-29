@@ -73,8 +73,29 @@ def get_change_detector() -> ChangeDetector:
 
 @lru_cache
 def get_llm_client() -> LLMClient:
-    """Cliente LLM único do processo (mantém o `httpx.AsyncClient` vivo)."""
+    """Cliente LLM (texto) único do processo."""
     return HttpLLMClient(get_settings())
+
+
+@lru_cache
+def get_vision_llm_client() -> LLMClient | None:
+    """Cliente LLM de visão para `LLM_MODE=vision`/`hybrid`.
+
+    Usa `LLM_VISION_BASE_URL`/`LLM_VISION_MODEL` se dados; senão, se o LLM
+    principal já suporta visão, reutiliza esse; senão `None`."""
+    s = get_settings()
+    if s.llm_vision_base_url or s.llm_vision_model:
+        vs = s.model_copy(
+            update={
+                "llm_base_url": s.llm_vision_base_url or s.llm_base_url,
+                "llm_model": s.llm_vision_model or s.llm_model,
+                "llm_supports_vision": True,
+            }
+        )
+        return HttpLLMClient(vs)
+    if s.llm_supports_vision:
+        return get_llm_client()
+    return None
 
 
 @lru_cache
@@ -93,7 +114,10 @@ def get_question_extractor(
     llm: LLMClient = Depends(get_llm_client),
 ) -> QuestionExtractor:
     return QuestionExtractor(
-        llm=llm, settings=get_settings(), ocr=get_ocr_engine()
+        llm=llm,
+        settings=get_settings(),
+        ocr=get_ocr_engine(),
+        vision_llm=get_vision_llm_client(),
     )
 
 
@@ -110,7 +134,10 @@ def build_pipeline() -> QuestionPipeline:
         camera=get_camera(),
         image_processor=get_image_processor(),
         extractor=QuestionExtractor(
-            llm=llm, settings=settings, ocr=get_ocr_engine()
+            llm=llm,
+            settings=settings,
+            ocr=get_ocr_engine(),
+            vision_llm=get_vision_llm_client(),
         ),
         solver=QuestionSolver(llm=llm),
         registry=get_capture_registry(),

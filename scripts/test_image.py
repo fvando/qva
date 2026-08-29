@@ -34,7 +34,7 @@ def _load(path: str):
 
 async def main(path: str) -> None:
     for f in (
-        d.get_camera, d.get_llm_client, d.get_capture_registry,
+        d.get_camera_manager, d.get_llm_client, d.get_capture_registry,
         d.get_image_processor, d.get_metrics, d.get_history,
         d.get_websocket_manager, d.get_change_detector,
     ):
@@ -53,22 +53,8 @@ async def main(path: str) -> None:
         return
 
     # 2. Pipeline completo (com o frame já carregado) -------------------
-    from app.config import get_settings
-    from app.llm.solver import QuestionSolver
-    from app.vision.extractor import QuestionExtractor
-
     reg = d.get_capture_registry()
-    llm = d.get_llm_client()
-    settings = get_settings()
-
-    pipe = QuestionPipeline(
-        camera=d.get_camera(),
-        image_processor=d.get_image_processor(),
-        extractor=QuestionExtractor(llm=llm, settings=settings),
-        solver=QuestionSolver(llm=llm),
-        registry=reg,
-        metrics=d.get_metrics(),
-    )
+    pipe = d.build_pipeline()  # mesma configuração do servidor (inclui vision_llm)
 
     t0 = time.time()
     job = reg.create()

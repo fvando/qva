@@ -79,6 +79,18 @@ class Settings(BaseSettings):
     """Se o modelo local aceita imagens. O código de negócio não deve depender
     disto — a escolha entre modo multimodal e OCR+LLM é interna ao extractor."""
 
+    # -- Estratégia de leitura da imagem -------------------------------
+    llm_mode: str = "hybrid"
+    """`ocr` (rápido, OCR+texto), `vision` (fiável, modelo multimodal), ou
+    `hybrid` (OCR primeiro; se falhar/alucinar, tenta visão)."""
+
+    llm_vision_base_url: str = ""
+    """URL do serviço de visão para `hybrid`/`vision` (ex: 2º Ollama). Vazio =
+    usa `llm_base_url`."""
+    llm_vision_model: str = ""
+    """Modelo de visão. Vazio = usa `llm_model` (só faz sentido se ele for
+    multimodal)."""
+
     # -- Deteção de mudança / captura automática ------------------------
     auto_capture_enabled: bool = False
     change_threshold: float = 0.25

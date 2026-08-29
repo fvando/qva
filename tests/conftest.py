@@ -12,20 +12,40 @@ from app.dependencies import get_camera, get_camera_manager, get_llm_client
 from app.main import create_app
 
 
-TEST_SETTINGS = Settings(_env_file=None, llm_supports_vision=True)
+TEST_SETTINGS = Settings(
+    _env_file=None, llm_supports_vision=False, llm_mode="ocr"
+)
+
+# Texto que a FakeCamera "mostra" e que o FakeLLM devolve — coerentes entre si
+# para o caminho OCR passar os guards de correspondência.
+_FAKE_QUESTION_TEXT = "Qual estrutura de dados segue a politica LIFO"
+_FAKE_LLM_JSON = (
+    '{"type":"multiple_choice","language":"pt",'
+    f'"question":"{_FAKE_QUESTION_TEXT}",'
+    '"options":{"A":"Fila","B":"Pilha"},"answer":"B","answer_text":"Pilha",'
+    '"explanation":"LIFO e pilha","confidence":0.9}'
+)
 
 
 @pytest.fixture(autouse=True)
 def _isolated_settings(monkeypatch):
-    """Os testes nunca devem depender do `.env` real da máquina.
-    Substitui `get_settings` em todos os módulos que o importaram por nome."""
+    """Os testes nunca devem depender do `.env` real da máquina nem carregar
+    os modelos ONNX do OCR."""
     for target in (
         "app.config.get_settings",
         "app.dependencies.get_settings",
         "app.main.get_settings",
     ):
         monkeypatch.setattr(target, lambda: TEST_SETTINGS)
+    monkeypatch.setattr("app.dependencies.get_ocr_engine", lambda: _FakeOCR())
     yield
+
+
+class _FakeOCR:
+    """OCR de teste — texto coerente com o FakeLLM, sem carregar ONNX."""
+
+    def image_to_text(self, image) -> str:  # noqa: ARG002
+        return _FAKE_QUESTION_TEXT + " A) Fila B) Pilha C) Arvore D) Lista ligada"
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +58,7 @@ def _reset_singletons():
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
         dependencies.get_llm_client,
+        dependencies.get_vision_llm_client,
         dependencies.get_metrics,
         dependencies.get_history,
         dependencies.get_change_detector,
@@ -49,7 +70,7 @@ def _reset_singletons():
 class FakeLLM(LLMClient):
     """LLM de teste: devolve um texto fixo, sem rede."""
 
-    def __init__(self, text: str = '{"answer":"D"}', reachable: bool = True) -> None:
+    def __init__(self, text: str = _FAKE_LLM_JSON, reachable: bool = True) -> None:
         self._text = text
         self._reachable = reachable
         self.calls: list[LLMRequest] = []
@@ -78,10 +99,14 @@ class FakeCamera(CameraSource):
         import cv2
 
         img = np.full((480, 640, 3), 235, dtype=np.uint8)
-        for y in range(40, 440, 30):
+        lines = [
+            "Qual estrutura de dados", "segue a politica LIFO?",
+            "A) Fila", "B) Pilha", "C) Arvore", "D) Lista ligada",
+        ]
+        for i, t in enumerate(lines):
             cv2.putText(
-                img, "linha " + str(y), (30, y),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2,
+                img, t, (20, 60 + i * 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2,
             )
         return img
 

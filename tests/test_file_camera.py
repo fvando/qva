@@ -60,14 +60,15 @@ async def test_pipeline_end_to_end_with_file_camera(fake_llm):
     from app.services.captures import CaptureRegistry
     from app.services.pipeline import QuestionPipeline
     from app.vision.extractor import QuestionExtractor
+    from tests.conftest import _FakeOCR
     from app.vision.processor import ImageProcessor
 
-    settings = Settings(_env_file=None, llm_supports_vision=True)
+    settings = Settings(_env_file=None, llm_supports_vision=False, llm_mode="ocr")
     registry = CaptureRegistry()
     pipeline = QuestionPipeline(
         camera=FileCamera(str(FIXTURE)),
         image_processor=ImageProcessor(),
-        extractor=QuestionExtractor(llm=fake_llm, settings=settings),
+        extractor=QuestionExtractor(llm=fake_llm, settings=settings, ocr=_FakeOCR()),
         solver=QuestionSolver(llm=fake_llm),
         registry=registry,
     )

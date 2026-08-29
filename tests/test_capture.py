@@ -42,7 +42,7 @@ def test_capture_runs_pipeline_end_to_end(client):
     assert body["id"] == capture_id
     assert body["status"] == "completed"
     assert body["question"] is not None
-    assert body["result"]["answer"] == "D"  # FakeLLM devolve {"answer":"D"}
+    assert body["result"]["answer"] == "B"  # FakeLLM devolve a questão LIFO -> B
     assert body["timing"]["total_ms"] >= 0
     assert body["timing"]["image_processing_ms"] >= 0
 

@@ -113,14 +113,17 @@ def find_screen_quad(gray: np.ndarray) -> np.ndarray | None:
     best_area = 0.0
     for c in sorted(contours, key=cv2.contourArea, reverse=True)[:15]:
         area = cv2.contourArea(c)
-        # Área mínima 8% (o ecrã pode ocupar pouco da foto), máx. 98%.
-        if area < 0.08 * img_area or area > 0.98 * img_area:
+        # Área mínima 30% — a tela com a questão domina a foto. Abaixo disso é
+        # quase sempre um retângulo interno (uma tabela, um bloco de texto,
+        # um diagrama) e recortá-lo dá cabo da leitura.
+        if area < 0.30 * img_area or area > 0.98 * img_area:
             continue
         peri = cv2.arcLength(c, True)
-        # Aproxima o contorno; tolera algum ruído nas bordas (reflexo, sombra).
-        approx = cv2.approxPolyDP(c, 0.04 * peri, True)
-        quad = _quad_from_approx(approx)
-        if quad is None:
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) != 4 or not cv2.isContourConvex(approx):
+            continue
+        quad = approx.reshape(4, 2).astype(np.float32)
+        if not _looks_rectangular(quad):
             continue
         # Rejeita se todos os cantos estão encostados às bordas da imagem.
         on_border = np.all(
@@ -137,19 +140,18 @@ def find_screen_quad(gray: np.ndarray) -> np.ndarray | None:
     return best
 
 
-def _quad_from_approx(approx: np.ndarray) -> np.ndarray | None:
-    """Reduz um contorno aproximado a 4 cantos.
-
-    - 4 vértices convexos: usa diretamente.
-    - 5 a 8 vértices: usa o retângulo rodado de área mínima (`minAreaRect`) —
-      um ecrã visto em perspetiva ligeira dá frequentemente 5-6 vértices.
-    """
-    pts = approx.reshape(-1, 2).astype(np.float32)
-    if len(pts) == 4 and cv2.isContourConvex(approx):
-        return pts
-    if 4 < len(pts) <= 8:
-        box = cv2.boxPoints(cv2.minAreaRect(pts))
-        return box.astype(np.float32)
+def _looks_rectangular(quad: np.ndarray, tol_deg: float = 25.0) -> bool:
+    """`True` se os 4 ângulos internos estão a menos de `tol_deg` de 90° —
+    filtra quadriláteros que a aproximação encontrou mas que não são telas."""
+    pts = _order_corners(quad)
+    for i in range(4):
+        a = pts[(i - 1) % 4] - pts[i]
+        b = pts[(i + 1) % 4] - pts[i]
+        cos = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
+        angle = np.degrees(np.arccos(max(-1.0, min(1.0, cos))))
+        if abs(angle - 90.0) > tol_deg:
+            return False
+    return True
     return None
 
 

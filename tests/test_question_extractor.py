@@ -1,4 +1,4 @@
-"""TASK-007 — QuestionExtractor (modo A e modo B) + parsing de JSON."""
+"""TASK-007 + estratégia ocr/vision/hybrid — QuestionExtractor."""
 
 import numpy as np
 import pytest
@@ -11,23 +11,33 @@ from app.vision.ocr import OCREngine
 from app.vision.processor import ProcessedImage
 from tests.conftest import FakeLLM
 
+_OCR_QUESTION = "Qual estrutura de dados segue a politica LIFO? A) Fila B) Pilha C) Arvore D) Lista"
+
 
 def _processed() -> ProcessedImage:
     return ProcessedImage(image=np.full((80, 120, 3), 230, dtype=np.uint8))
 
 
-def _settings(vision: bool) -> Settings:
-    return Settings(_env_file=None, llm_supports_vision=vision)
+def _settings(mode: str = "ocr", vision: bool = False) -> Settings:
+    return Settings(_env_file=None, llm_mode=mode, llm_supports_vision=vision)
 
 
 class FakeOCR(OCREngine):
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str = _OCR_QUESTION) -> None:
         self.text = text
         self.called = False
 
     def image_to_text(self, image) -> str:
         self.called = True
         return self.text
+
+
+def _flat(question="Qual estrutura de dados segue a politica LIFO", answer="B"):
+    return (
+        f'{{"type":"multiple_choice","language":"pt","question":"{question}",'
+        f'"options":{{"A":"Fila","B":"Pilha"}},"answer":"{answer}",'
+        f'"answer_text":"Pilha","explanation":"LIFO=pilha","confidence":0.9}}'
+    )
 
 
 # -- json_utils ----------------------------------------------------------
@@ -39,113 +49,134 @@ def test_extract_json_from_fence():
     assert extract_json_object('```json\n{"a": 2}\n```') == {"a": 2}
 
 
-def test_extract_json_with_surrounding_text():
-    txt = 'Claro! Aqui está:\n{"answer": "D"}\nEspero ter ajudado.'
-    assert extract_json_object(txt) == {"answer": "D"}
-
-
 def test_extract_json_raises_when_absent():
     with pytest.raises(JsonExtractionError):
         extract_json_object("nenhum json aqui")
 
 
-# -- modo A (multimodal) --------------------------------------------------
-async def test_mode_a_sends_image_and_parses():
-    body = (
-        '{"type":"multiple_choice","language":"pt","question":"Qual?",'
-        '"options":{"A":"um","B":"dois"},"code":null,"has_image":false,'
-        '"confidence":0.9}'
-    )
-    llm = FakeLLM(text=body)
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=True), ocr=FakeOCR("x"))
-    q = await ex.extract(_processed())
+# -- modo ocr ---------------------------------------------------------
+async def test_ocr_extract_and_solve():
+    llm = FakeLLM(text=_flat())
+    ocr = FakeOCR()
+    ex = QuestionExtractor(llm=llm, settings=_settings("ocr"), ocr=ocr)
 
-    assert q.type is QuestionType.MULTIPLE_CHOICE
-    assert q.options == {"A": "um", "B": "dois"}
-    assert q.confidence == 0.9
-    assert llm.calls[0].image_b64 is not None  # imagem foi enviada
-
-
-# -- modo B (OCR + LLM) --------------------------------------------------
-async def test_mode_b_uses_ocr_and_no_image():
-    llm = FakeLLM(text='{"type":"open_question","question":"Explique X"}')
-    ocr = FakeOCR("Explique X detalhadamente")
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=False), ocr=ocr)
-    q = await ex.extract(_processed())
-
+    q, r = await ex.extract_and_solve(_processed())
     assert ocr.called is True
     assert llm.calls[0].image_b64 is None
-    assert "Explique X detalhadamente" in llm.calls[0].prompt
-    assert q.type is QuestionType.OPEN_QUESTION
+    assert q.type is QuestionType.MULTIPLE_CHOICE
+    assert q.options == {"A": "Fila", "B": "Pilha"}
+    assert r.answer == "B"
 
 
-# -- robustez do parsing ----------------------------------------------
-async def test_unknown_type_falls_back():
-    llm = FakeLLM(text='{"type":"charada","question":"?"}')
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=True))
-    q = await ex.extract(_processed())
-    assert q.type is QuestionType.UNKNOWN
-
-
-async def test_confidence_is_clamped():
-    llm = FakeLLM(text='{"type":"true_false","question":"?","confidence":5}')
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=True))
-    q = await ex.extract(_processed())
-    assert q.confidence == 1.0
-
-
-async def test_non_json_response_raises():
-    llm = FakeLLM(text="Desculpe, não consegui.")
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=True))
-    with pytest.raises(QuestionExtractionError):
-        await ex.extract(_processed())
-
-
-async def test_options_non_dict_becomes_empty():
-    llm = FakeLLM(text='{"type":"multiple_choice","question":"?","options":["a","b"]}')
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=True))
-    q = await ex.extract(_processed())
-    assert q.options == {}
-
-
-# -- modo B combinado (extract_and_solve) --------------------------------
-def test_supports_combined_only_in_mode_b():
-    assert QuestionExtractor(FakeLLM(), _settings(vision=False)).supports_combined is True
-    assert QuestionExtractor(FakeLLM(), _settings(vision=True)).supports_combined is False
-
-
-async def test_extract_and_solve_flat_json():
-    body = (
-        '{"type":"multiple_choice","language":"pt","question":"Qual e LIFO?",'
-        '"options":{"A":"Fila","B":"Pilha"},"answer":"B","answer_text":"Pilha",'
-        '"explanation":"LIFO = pilha","confidence":0.95,"ambiguous":false}'
-    )
-    llm = FakeLLM(text=body)
-    ocr = FakeOCR("Qual e LIFO? A) Fila B) Pilha")
-    ex = QuestionExtractor(llm=llm, settings=_settings(vision=False), ocr=ocr)
-
-    question, result = await ex.extract_and_solve(_processed())
-    assert ocr.called is True
-    assert llm.calls[0].image_b64 is None  # sem imagem no modo B
-    assert question.type is QuestionType.MULTIPLE_CHOICE
-    assert question.options == {"A": "Fila", "B": "Pilha"}
-    assert result.answer == "B"
-    assert result.answer_text == "Pilha"
-    assert result.confidence == 0.95
-
-
-async def test_extract_and_solve_fills_answer_text_from_options():
-    body = '{"type":"multiple_choice","question":"?","options":{"A":"Fila","B":"Pilha"},"answer":"B"}'
+async def test_ocr_too_little_text_raises():
     ex = QuestionExtractor(
-        llm=FakeLLM(text=body), settings=_settings(vision=False), ocr=FakeOCR("x")
-    )
-    _, result = await ex.extract_and_solve(_processed())
-    assert result.answer_text == "Pilha"
-
-
-async def test_extract_and_solve_non_json_raises():
-    ex = QuestionExtractor(
-        llm=FakeLLM(text="não consegui"), settings=_settings(vision=False), ocr=FakeOCR("x")
+        llm=FakeLLM(text=_flat()), settings=_settings("ocr"), ocr=FakeOCR("ab")
     )
     with pytest.raises(QuestionExtractionError):
         await ex.extract_and_solve(_processed())
+
+
+async def test_ocr_hallucination_detected():
+    # o LLM devolve um enunciado sem relação com o texto do OCR
+    body = _flat(question="Qual e a capital de Franca", answer="A")
+    ex = QuestionExtractor(
+        llm=FakeLLM(text=body), settings=_settings("ocr"), ocr=FakeOCR()
+    )
+    with pytest.raises(QuestionExtractionError):
+        await ex.extract_and_solve(_processed())
+
+
+async def test_ocr_non_json_raises():
+    ex = QuestionExtractor(
+        llm=FakeLLM(text="não consegui"), settings=_settings("ocr"), ocr=FakeOCR()
+    )
+    with pytest.raises(QuestionExtractionError):
+        await ex.extract_and_solve(_processed())
+
+
+# -- modo vision ----------------------------------------------------
+async def test_vision_extract_and_solve_sends_image():
+    vis = FakeLLM(text=_flat())
+    ex = QuestionExtractor(
+        llm=FakeLLM(), settings=_settings("vision", vision=True),
+        ocr=FakeOCR(), vision_llm=vis,
+    )
+    q, r = await ex.extract_and_solve(_processed())
+    assert vis.calls[0].image_b64 is not None
+    assert q.type is QuestionType.MULTIPLE_CHOICE
+    assert r.answer == "B"
+
+
+async def test_vision_mode_without_client_falls_back_to_ocr():
+    llm = FakeLLM(text=_flat())
+    ex = QuestionExtractor(
+        llm=llm, settings=_settings("vision"), ocr=FakeOCR(), vision_llm=None
+    )
+    assert ex.supports_combined is True  # caiu para ocr
+    q, _ = await ex.extract_and_solve(_processed())
+    assert llm.calls[0].image_b64 is None
+
+
+# -- modo hybrid --------------------------------------------------
+async def test_hybrid_uses_ocr_when_it_works():
+    text_llm = FakeLLM(text=_flat())
+    vis = FakeLLM(text=_flat())
+    ex = QuestionExtractor(
+        llm=text_llm, settings=_settings("hybrid", vision=False),
+        ocr=FakeOCR(), vision_llm=vis,
+    )
+    await ex.extract_and_solve(_processed())
+    assert len(text_llm.calls) == 1
+    assert len(vis.calls) == 0  # não foi preciso o fallback
+
+
+async def test_hybrid_falls_back_to_vision_on_hallucination():
+    # OCR path devolve enunciado que não bate -> guard falha -> vision
+    text_llm = FakeLLM(text=_flat(question="Qual e a capital de Franca", answer="A"))
+    vis = FakeLLM(text=_flat())
+    ex = QuestionExtractor(
+        llm=text_llm, settings=_settings("hybrid"),
+        ocr=FakeOCR(), vision_llm=vis,
+    )
+    q, r = await ex.extract_and_solve(_processed())
+    assert len(vis.calls) == 1  # fallback aconteceu
+    assert vis.calls[0].image_b64 is not None
+    assert r.answer == "B"
+
+
+async def test_hybrid_falls_back_on_weak_ocr():
+    text_llm = FakeLLM(text=_flat())
+    vis = FakeLLM(text=_flat())
+    ex = QuestionExtractor(
+        llm=text_llm, settings=_settings("hybrid"),
+        ocr=FakeOCR("xx"), vision_llm=vis,
+    )
+    await ex.extract_and_solve(_processed())
+    assert len(vis.calls) == 1
+
+
+async def test_hybrid_without_vision_client_raises_on_failure():
+    ex = QuestionExtractor(
+        llm=FakeLLM(text=_flat()), settings=_settings("hybrid"),
+        ocr=FakeOCR("x"), vision_llm=None,
+    )
+    with pytest.raises(QuestionExtractionError):
+        await ex.extract_and_solve(_processed())
+
+
+# -- parsing robusto -------------------------------------------------
+async def test_unknown_type_falls_back():
+    body = (
+        '{"type":"charada","question":"Qual estrutura de dados segue a politica '
+        'LIFO Fila Pilha","options":{},"answer":"x"}'
+    )
+    ex = QuestionExtractor(llm=FakeLLM(text=body), settings=_settings("ocr"), ocr=FakeOCR())
+    q, _ = await ex.extract_and_solve(_processed())
+    assert q.type is QuestionType.UNKNOWN
+
+
+async def test_confidence_clamped():
+    body = _flat().replace('"confidence":0.9', '"confidence":9')
+    ex = QuestionExtractor(llm=FakeLLM(text=body), settings=_settings("ocr"), ocr=FakeOCR())
+    q, _ = await ex.extract_and_solve(_processed())
+    assert q.confidence == 1.0

@@ -1,13 +1,15 @@
-"""`QuestionExtractor` — extrai uma `Question` estruturada (TASK-007).
+"""`QuestionExtractor` — extrai (e no modo texto, resolve) uma `Question`.
 
-Modos, escolhidos internamente por `LLM_SUPPORTS_VISION`:
-  - Modo A (multimodal): a imagem tratada vai direto ao modelo Vision. Extração
-    e resolução são 2 chamadas separadas (a resolução é do `QuestionSolver`).
-  - Modo B (OCR + LLM): imagem -> OCR -> texto -> modelo textual. Como o input
-    já é texto, `extract_and_solve()` funde extração + resolução numa só
-    chamada, poupando um round-trip ao LLM (relevante em CPU).
+Estratégias (`LLM_MODE`):
+  - `ocr`     — imagem → OCR → texto → modelo textual. Rápido. `extract_and_solve`
+                funde extração + resolução numa só chamada.
+  - `vision`  — imagem → modelo multimodal. Fiável, mas lento em CPU.
+  - `hybrid`  — tenta `ocr`; se o resultado falhar as verificações (OCR fraco,
+                ou o enunciado não corresponde ao texto lido → provável
+                alucinação), refaz com `vision`.
 
-Quem chama (`QuestionPipeline`) não sabe qual modo está ativo.
+Quem chama (`QuestionPipeline`) não sabe qual estratégia está ativa — recebe
+sempre uma `Question` (e no caminho combinado, também o `SolveResult`).
 """
 
 from __future__ import annotations
@@ -43,56 +45,107 @@ class QuestionExtractor:
         llm: LLMClient,
         settings: Settings,
         ocr: OCREngine | None = None,
+        vision_llm: LLMClient | None = None,
     ) -> None:
         self._llm = llm
         self._settings = settings
-        self._ocr = ocr  # construído sob procura no modo B (build_ocr_engine)
+        self._ocr = ocr
+        # Cliente multimodal para `vision`/`hybrid`. Se não for dado e o `_llm`
+        # já suportar visão, usa-se esse.
+        self._vision_llm = vision_llm or (
+            llm if settings.llm_supports_vision else None
+        )
+
+    # -- estratégia -----------------------------------------------------
+    @property
+    def _mode(self) -> str:
+        m = (self._settings.llm_mode or "hybrid").lower()
+        if m == "vision" and self._vision_llm is None:
+            return "ocr"  # sem cliente de visão, não há como
+        return m
 
     @property
     def supports_combined(self) -> bool:
-        """No modo B (texto) podemos fundir extração + resolução."""
-        return not self._settings.llm_supports_vision
+        """No caminho de texto (ocr/hybrid) fundimos extração + resolução."""
+        return self._mode in ("ocr", "hybrid")
 
     def _get_ocr(self) -> OCREngine:
         if self._ocr is None:
             self._ocr = build_ocr_engine()
         return self._ocr
 
-    # -- extração isolada (usada no modo A; modo B se combined desligado) --
+    # -- extração isolada (modo `vision`; ou quando combined desligado) --
     async def extract(self, processed: ProcessedImage) -> Question:
-        if self._settings.llm_supports_vision:
-            request = await self._build_multimodal_request(processed)
-        else:
-            request = await self._build_ocr_request(processed)
+        if self._mode == "vision":
+            request = await self._vision_request(processed)
+            response = await self._vision_llm.generate(request)
+            return self._parse_question(_json(response.text))
+        request = await self._ocr_request(processed)
         response = await self._llm.generate(request)
         return self._parse_question(_json(response.text))
 
-    # -- extração + resolução numa só chamada (modo B) -----------------
+    # -- extração + resolução numa só chamada -------------------------
     async def extract_and_solve(
+        self, processed: ProcessedImage
+    ) -> tuple[Question, SolveResult]:
+        mode = self._mode
+
+        if mode == "vision":
+            return await self._vision_extract_and_solve(processed)
+
+        # ocr ou hybrid: começa pelo OCR
+        try:
+            return await self._ocr_extract_and_solve(processed)
+        except QuestionExtractionError as exc:
+            if mode != "hybrid" or self._vision_llm is None:
+                raise
+            logger.info("HYBRID_FALLBACK_TO_VISION", extra={"model": str(exc)})
+            return await self._vision_extract_and_solve(processed)
+
+    # -- caminho OCR + texto ----------------------------------------
+    async def _ocr_extract_and_solve(
         self, processed: ProcessedImage
     ) -> tuple[Question, SolveResult]:
         ocr = self._get_ocr()
         text = await asyncio.to_thread(ocr.image_to_text, processed.image)
         logger.info("OCR_DONE", extra={"model": str(len(text))})
+        _guard_ocr_text(text)
+
         request = LLMRequest(
             system=COMBINED_SYSTEM, prompt=build_combined_user(text)
         )
         response = await self._llm.generate(request)
         data = _json(response.text)
-        # JSON plano: os campos da questão e do resultado no mesmo nível.
         question = self._parse_question(data)
         result = _parse_result(data, question)
+        _guard_question_matches_ocr(question, text)
         return question, result
 
-    # -- modo A -------------------------------------------------------------
-    async def _build_multimodal_request(self, processed: ProcessedImage) -> LLMRequest:
-        image_b64 = await asyncio.to_thread(_encode_b64, processed.image)
-        return LLMRequest(
-            system=EXTRACTION_SYSTEM, prompt=EXTRACTION_USER, image_b64=image_b64
-        )
+    # -- caminho visão --------------------------------------------
+    async def _vision_extract_and_solve(
+        self, processed: ProcessedImage
+    ) -> tuple[Question, SolveResult]:
+        request = await self._vision_request(processed, combined=True)
+        response = await self._vision_llm.generate(request)
+        data = _json(response.text)
+        question = self._parse_question(data)
+        result = _parse_result(data, question)
+        _guard_question_not_empty(question)
+        return question, result
 
-    # -- modo B (extração isolada) -------------------------------------
-    async def _build_ocr_request(self, processed: ProcessedImage) -> LLMRequest:
+    async def _vision_request(
+        self, processed: ProcessedImage, combined: bool = False
+    ) -> LLMRequest:
+        image_b64 = await asyncio.to_thread(_encode_b64, processed.image)
+        system = COMBINED_SYSTEM if combined else EXTRACTION_SYSTEM
+        prompt = (
+            "Analise a imagem e responda só com o JSON pedido."
+            if combined
+            else EXTRACTION_USER
+        )
+        return LLMRequest(system=system, prompt=prompt, image_b64=image_b64)
+
+    async def _ocr_request(self, processed: ProcessedImage) -> LLMRequest:
         ocr = self._get_ocr()
         text = await asyncio.to_thread(ocr.image_to_text, processed.image)
         return LLMRequest(
@@ -131,6 +184,79 @@ def _json(text: str) -> dict:
         return extract_json_object(text)
     except JsonExtractionError as exc:
         raise QuestionExtractionError(f"resposta não-JSON: {exc}") from exc
+
+
+# Nº mínimo de caracteres de texto reconhecido para valer a pena chamar o LLM.
+_MIN_OCR_CHARS = 25
+
+
+def _guard_ocr_text(text: str) -> None:
+    """Se o OCR mal leu texto, não vale a pena perguntar ao LLM — ele
+    inventaria uma questão."""
+    clean = " ".join(text.split())
+    if len(clean) < _MIN_OCR_CHARS:
+        raise QuestionExtractionError(
+            "não foi possível ler texto suficiente da imagem"
+        )
+
+
+# Palavras comuns que não distinguem uma questão de outra — ignoradas ao
+# comparar o enunciado do LLM com o texto do OCR.
+_STOPWORDS = {
+    "qual", "quais", "para", "pela", "pelo", "como", "onde", "quando", "porque",
+    "sobre", "entre", "dos", "das", "uma", "umas", "uns", "que", "com", "sem",
+    "por", "mais", "menos", "seguinte", "abaixo", "acima", "alternativa",
+    "alternativas", "questao", "questoes", "resolva", "considere", "assinale",
+    "marque", "correta", "incorreta", "opcao", "opcoes", "seja", "sejam",
+    "este", "esta", "esse", "essa", "aquele", "aquela", "isto", "isso",
+}
+
+
+def _norm(s: str) -> set[str]:
+    import re
+
+    return {
+        w
+        for w in re.findall(r"[a-zà-ú0-9]{4,}", s.lower())
+        if w not in _STOPWORDS
+    }
+
+
+def _guard_question_matches_ocr(question: Question, ocr_text: str) -> None:
+    """Deteta alucinação: o enunciado devolvido pelo LLM tem de estar
+    ancorado no texto que o OCR leu — não basta partilhar palavras soltas do
+    mesmo domínio, tem de partilhar EXPRESSÕES (bigramas)."""
+    import re
+
+    q_words = [w for w in re.findall(r"[a-zà-ú0-9]+", question.question.lower())]
+    q_sig = _norm(question.question)
+    if len(q_sig) < 3:
+        raise QuestionExtractionError("enunciado vazio ou demasiado curto")
+
+    ocr_sig = _norm(ocr_text)
+    word_overlap = len(q_sig & ocr_sig) / len(q_sig)
+
+    # Bigramas do enunciado que também aparecem no OCR.
+    q_bigrams = {f"{a} {b}" for a, b in zip(q_words, q_words[1:])}
+    ocr_norm = " ".join(re.findall(r"[a-zà-ú0-9]+", ocr_text.lower()))
+    bigram_hits = sum(1 for bg in q_bigrams if bg in ocr_norm)
+    bigram_ratio = bigram_hits / max(len(q_bigrams), 1)
+
+    # Alucinação se: poucas palavras significativas em comum, OU quase nenhuma
+    # expressão do enunciado aparece literalmente no texto lido.
+    if word_overlap < 0.35 or bigram_ratio < 0.20:
+        raise QuestionExtractionError(
+            "a questão devolvida não está no texto lido da imagem "
+            f"(palavras {word_overlap:.0%}, expressões {bigram_ratio:.0%}) — "
+            "provável alucinação"
+        )
+
+
+def _guard_question_not_empty(question: Question) -> None:
+    if len(_norm(question.question)) < 3:
+        raise QuestionExtractionError(
+            "o modelo de visão não conseguiu ler uma questão nesta imagem"
+        )
 
 
 def _parse_result(data: dict, question: Question) -> SolveResult:
