@@ -55,6 +55,7 @@ def _reset_singletons():
     for fn in (
         dependencies.get_camera_manager,
         dependencies.get_capture_registry,
+        dependencies.get_page_buffer,
         dependencies.get_websocket_manager,
         dependencies.get_image_processor,
         dependencies.get_llm_client,

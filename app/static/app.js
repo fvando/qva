@@ -400,6 +400,81 @@
     }
   });
 
+  // -- Questão em várias páginas --------------------------------------
+  var pageCountEl = $("page-count");
+  var addPageBtn = $("add-page");
+  var solvePagesBtn = $("solve-pages");
+  var clearPagesBtn = $("clear-pages");
+
+  function updatePageUI(n) {
+    pageCountEl.textContent = n + (n === 1 ? " página capturada" : " páginas capturadas");
+    solvePagesBtn.disabled = n === 0;
+    clearPagesBtn.disabled = n === 0;
+  }
+
+  async function frameForPage() {
+    // no modo browser, o frame vem do <video>; senão, o servidor captura sozinho
+    if (browserMode) return await grabVideoJpeg();
+    return null;
+  }
+
+  if (addPageBtn) {
+    addPageBtn.addEventListener("click", async function () {
+      addPageBtn.disabled = true;
+      addPageBtn.textContent = "A capturar…";
+      try {
+        var blob = await frameForPage();
+        var opts = { method: "POST" };
+        if (blob) {
+          opts.headers = { "Content-Type": "image/jpeg" };
+          opts.body = blob;
+        }
+        var r = await fetch("/api/capture/page", opts);
+        var body = await r.json();
+        if (!r.ok) {
+          $("camera-msg").dataset.kind = "error";
+          $("camera-msg").textContent = "página rejeitada: " + (body.detail || r.status);
+        } else {
+          updatePageUI(body.pages);
+        }
+      } catch (e) {
+        $("camera-msg").dataset.kind = "error";
+        $("camera-msg").textContent = "falha ao adicionar página";
+      } finally {
+        addPageBtn.disabled = false;
+        addPageBtn.textContent = "+ Adicionar página";
+      }
+    });
+
+    solvePagesBtn.addEventListener("click", async function () {
+      resetCards();
+      setState("solving");
+      solvePagesBtn.disabled = true;
+      try {
+        var r = await fetch("/api/capture/solve", { method: "POST" });
+        var body = await r.json();
+        if (!r.ok) throw new Error(body.detail || r.status);
+        updatePageUI(0);
+        pollUntilDone(body.capture_id);
+      } catch (e) {
+        setState("error");
+        $("error-text").textContent = "Falha ao resolver: " + (e.message || e);
+        show("error-card");
+      }
+    });
+
+    clearPagesBtn.addEventListener("click", async function () {
+      await fetch("/api/capture/pages", { method: "DELETE" });
+      updatePageUI(0);
+    });
+
+    // estado inicial
+    fetch("/api/capture/pages")
+      .then(function (r) { return r.json(); })
+      .then(function (b) { updatePageUI(b.pages || 0); })
+      .catch(function () {});
+  }
+
   async function pollUntilDone(id) {
     for (var i = 0; i < 90; i++) {
       await new Promise(function (res) { setTimeout(res, 700); });

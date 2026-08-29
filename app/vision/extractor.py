@@ -86,23 +86,32 @@ class QuestionExtractor:
 
     # -- extração + resolução numa só chamada -------------------------
     async def extract_and_solve(
-        self, processed: ProcessedImage
+        self, processed: ProcessedImage | list[ProcessedImage]
     ) -> tuple[Question, SolveResult]:
+        pages = processed if isinstance(processed, list) else [processed]
+        if not pages:
+            raise QuestionExtractionError("nenhuma página para processar")
         mode = self._mode
 
-        if mode == "vision":
-            return await self._vision_extract_and_solve(processed)
+        if mode == "vision" or len(pages) > 1:
+            # Várias páginas -> só o modelo de visão as junta corretamente.
+            if len(pages) > 1 and self._vision_llm is None:
+                raise QuestionExtractionError(
+                    "questão de várias páginas requer um modelo de visão "
+                    "(LLM_MODE=vision ou LLM_VISION_MODEL)"
+                )
+            return await self._vision_extract_and_solve(pages)
 
-        # ocr ou hybrid: começa pelo OCR
+        # 1 página, ocr ou hybrid: começa pelo OCR
         try:
-            return await self._ocr_extract_and_solve(processed)
+            return await self._ocr_extract_and_solve(pages[0])
         except QuestionExtractionError as exc:
             if mode != "hybrid" or self._vision_llm is None:
                 raise
             logger.info("HYBRID_FALLBACK_TO_VISION", extra={"model": str(exc)})
-            return await self._vision_extract_and_solve(processed)
+            return await self._vision_extract_and_solve(pages)
 
-    # -- caminho OCR + texto ----------------------------------------
+    # -- caminho OCR + texto (1 página) ---------------------------
     async def _ocr_extract_and_solve(
         self, processed: ProcessedImage
     ) -> tuple[Question, SolveResult]:
@@ -121,11 +130,11 @@ class QuestionExtractor:
         _guard_question_matches_ocr(question, text)
         return question, result
 
-    # -- caminho visão --------------------------------------------
+    # -- caminho visão (1 ou N páginas) --------------------------
     async def _vision_extract_and_solve(
-        self, processed: ProcessedImage
+        self, pages: list[ProcessedImage]
     ) -> tuple[Question, SolveResult]:
-        request = await self._vision_request(processed, combined=True)
+        request = await self._vision_request(pages, combined=True)
         response = await self._vision_llm.generate(request)
         data = _json(response.text)
         question = self._parse_question(data)
@@ -134,19 +143,31 @@ class QuestionExtractor:
         return question, result
 
     async def _vision_request(
-        self, processed: ProcessedImage, combined: bool = False
+        self,
+        pages: ProcessedImage | list[ProcessedImage],
+        combined: bool = False,
     ) -> LLMRequest:
-        image_b64 = await asyncio.to_thread(_encode_b64, processed.image)
+        page_list = pages if isinstance(pages, list) else [pages]
+        images_b64 = [
+            await asyncio.to_thread(_encode_b64, p.image) for p in page_list
+        ]
         system = COMBINED_SYSTEM if combined else EXTRACTION_SYSTEM
-        prompt = (
-            "Analise a imagem e responda só com o JSON pedido."
-            if combined
-            else EXTRACTION_USER
-        )
+        n = len(images_b64)
+        if combined:
+            prompt = (
+                "Analise a imagem e responda só com o JSON pedido."
+                if n == 1
+                else (
+                    f"A questão está dividida em {n} imagens, por esta ordem. "
+                    "Junte tudo numa só questão e responda só com o JSON pedido."
+                )
+            )
+        else:
+            prompt = EXTRACTION_USER
         # A resposta combinada (questão + opções + explicação) é maior que uma
         # extração simples — mais folga de tokens para o JSON não sair cortado.
         return LLMRequest(
-            system=system, prompt=prompt, image_b64=image_b64, max_tokens=2000
+            system=system, prompt=prompt, images_b64=images_b64, max_tokens=2000
         )
 
     async def _ocr_request(self, processed: ProcessedImage) -> LLMRequest:

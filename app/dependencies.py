@@ -19,6 +19,7 @@ from app.llm.solver import QuestionSolver
 from app.history import HistoryStore
 from app.services.captures import CaptureRegistry
 from app.services.metrics import MetricsCollector
+from app.services.pages import PageBuffer
 from app.services.pipeline import QuestionPipeline
 from app.vision.change_detector import ChangeDetector
 from app.vision.extractor import QuestionExtractor
@@ -44,6 +45,11 @@ def get_camera() -> CameraSource:
 @lru_cache
 def get_capture_registry() -> CaptureRegistry:
     return CaptureRegistry()
+
+
+@lru_cache
+def get_page_buffer() -> PageBuffer:
+    return PageBuffer()
 
 
 @lru_cache

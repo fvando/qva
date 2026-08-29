@@ -237,6 +237,39 @@ button.ghost {
   border-radius: 10px;
   cursor: pointer;
 }
+button.ghost:disabled { opacity: 0.4; cursor: default; }
+
+/* -- Questão multi-página ---------------------------------------- */
+#multipage {
+  margin: 0.6rem 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface);
+}
+#multipage summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+#multipage .hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+}
+.page-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0.4rem 0;
+}
+.page-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+.page-actions #add-page { grid-column: 1 / -1; }
+.page-actions button { margin-top: 0; }
 
 /* -- Banner de estado --------------------------------------------- */
 .banner {

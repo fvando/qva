@@ -18,9 +18,18 @@ class LLMRequest(BaseModel):
     system: str = ""
     prompt: str = ""
     image_b64: str | None = None
-    """JPEG em base64, apenas quando o modelo suporta visão."""
+    """Uma imagem JPEG em base64. Conveniência para o caso de 1 página."""
+    images_b64: list[str] = Field(default_factory=list)
+    """Várias imagens JPEG em base64 — questões que ocupam mais de uma página.
+    Se vazio e `image_b64` estiver preenchido, usa-se essa."""
     temperature: float = 0.0
     max_tokens: int = 1024
+
+    @property
+    def all_images(self) -> list[str]:
+        if self.images_b64:
+            return self.images_b64
+        return [self.image_b64] if self.image_b64 else []
 
 
 class LLMResponse(BaseModel):

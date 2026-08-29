@@ -71,12 +71,13 @@ class QuestionPipeline:
 
     # -- fluxo principal ------------------------------------------------
     async def process_capture(
-        self, capture_id: str, *, frame=None
+        self, capture_id: str, *, frame=None, pages: list | None = None
     ) -> ConsolidatedResponse:
         """Executa o pipeline para uma captura já registada no `CaptureRegistry`.
 
-        Se `frame` for dado (captura automática, TASK-016), usa-o em vez de ler
-        de novo da câmera — assim não se perde o instante estável observado.
+        - `frame` dado (captura automática): usa-o em vez de ler da câmera.
+        - `pages` dado (questão multi-página): lista de `ProcessedImage` já
+          processadas; salta captura + processamento e resolve com todas.
         """
         timing = Timing()
         overall = time.perf_counter()
@@ -86,31 +87,47 @@ class QuestionPipeline:
         await self._emit("capture_started", {"capture_id": capture_id})
 
         try:
-            # 1. Captura do frame -----------------------------------------
-            self._registry.set_state(capture_id, CaptureState.CAPTURING)
-            with _step(timing, "capture_ms"):
-                if frame is None:
-                    frame = await asyncio.to_thread(self._capture_frame)
-            # hash curto do frame — para confirmar nos logs que cada captura usa
-            # uma imagem diferente (diagnóstico de "resposta de imagem antiga").
-            fp = hashlib.sha1(frame.tobytes()).hexdigest()[:12] if frame is not None else "none"
-            logger.info("CAPTURE_COMPLETED", extra={**log_extra, "frame": fp})
-
-            # 2. Processamento de imagem (OpenCV -> thread) -------------
-            self._registry.set_state(capture_id, CaptureState.PROCESSING_IMAGE)
-            with _step(timing, "image_processing_ms"):
-                processed = await asyncio.to_thread(
-                    self._image_processor.process_sync, frame
+            if pages:
+                # Multi-página: as imagens já vêm capturadas e processadas.
+                self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
+                logger.info(
+                    "MULTIPAGE_SOLVE", extra={**log_extra, "pages": str(len(pages))}
                 )
-            logger.info(
-                "IMAGE_PROCESSED",
-                extra={**log_extra, **processed.metrics(), "screen": processed.screen_detected},
+                processed = pages
+            else:
+                # 1. Captura do frame -----------------------------------
+                self._registry.set_state(capture_id, CaptureState.CAPTURING)
+                with _step(timing, "capture_ms"):
+                    if frame is None:
+                        frame = await asyncio.to_thread(self._capture_frame)
+                fp = (
+                    hashlib.sha1(frame.tobytes()).hexdigest()[:12]
+                    if frame is not None
+                    else "none"
+                )
+                logger.info("CAPTURE_COMPLETED", extra={**log_extra, "frame": fp})
+
+                # 2. Processamento de imagem (OpenCV -> thread) --------
+                self._registry.set_state(capture_id, CaptureState.PROCESSING_IMAGE)
+                with _step(timing, "image_processing_ms"):
+                    processed = await asyncio.to_thread(
+                        self._image_processor.process_sync, frame
+                    )
+                logger.info(
+                    "IMAGE_PROCESSED",
+                    extra={
+                        **log_extra,
+                        **processed.metrics(),
+                        "screen": processed.screen_detected,
+                    },
+                )
+
+            combined = getattr(self._extractor, "supports_combined", False) or bool(
+                pages
             )
 
-            combined = getattr(self._extractor, "supports_combined", False)
-
             if combined:
-                # Modo B: extração + resolução numa só chamada ao LLM.
+                # Modo B / multi-página: extração + resolução numa só chamada.
                 self._registry.set_state(capture_id, CaptureState.EXTRACTING_QUESTION)
                 logger.info("LLM_REQUEST_STARTED", extra=log_extra)
                 with _step(timing, "question_extraction_ms"):

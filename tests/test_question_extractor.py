@@ -102,7 +102,7 @@ async def test_vision_extract_and_solve_sends_image():
         ocr=FakeOCR(), vision_llm=vis,
     )
     q, r = await ex.extract_and_solve(_processed())
-    assert vis.calls[0].image_b64 is not None
+    assert vis.calls[0].all_images
     assert q.type is QuestionType.MULTIPLE_CHOICE
     assert r.answer == "B"
 
@@ -140,7 +140,7 @@ async def test_hybrid_falls_back_to_vision_on_hallucination():
     )
     q, r = await ex.extract_and_solve(_processed())
     assert len(vis.calls) == 1  # fallback aconteceu
-    assert vis.calls[0].image_b64 is not None
+    assert vis.calls[0].all_images
     assert r.answer == "B"
 
 

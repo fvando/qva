@@ -67,6 +67,19 @@
 
       <button id="capture" class="primary">Capturar nova questão</button>
 
+      <details id="multipage">
+        <summary>Questão em várias páginas</summary>
+        <p class="hint">
+          Captura cada página; ao terminar, carrega em Resolver. O modelo junta tudo.
+        </p>
+        <p id="page-count" class="page-count">0 páginas capturadas</p>
+        <div class="page-actions">
+          <button id="add-page" class="ghost" type="button">+ Adicionar página</button>
+          <button id="solve-pages" class="ghost" type="button" disabled>Resolver</button>
+          <button id="clear-pages" class="ghost" type="button" disabled>Limpar</button>
+        </div>
+      </details>
+
       <div id="results">
         <section class="card" id="question-card" hidden>
           <div class="card-head">

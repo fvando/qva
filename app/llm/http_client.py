@@ -90,22 +90,18 @@ class HttpLLMClient(LLMClient):
         if request.system:
             messages.append({"role": "user", "content": request.system})
 
-        if request.image_b64 and self._settings.llm_supports_vision:
-            # Formato multimodal estilo OpenAI: lista de partes texto+imagem.
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": request.prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{request.image_b64}"
-                            },
-                        },
-                    ],
-                }
-            )
+        images = request.all_images if self._settings.llm_supports_vision else []
+        if images:
+            # Formato multimodal estilo OpenAI: texto + N imagens (páginas).
+            content: list[dict] = [{"type": "text", "text": request.prompt}]
+            for b64 in images:
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                    }
+                )
+            messages.append({"role": "user", "content": content})
         else:
             messages.append({"role": "user", "content": request.prompt})
         return messages
