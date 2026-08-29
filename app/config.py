@@ -27,6 +27,7 @@ class CameraType(str, Enum):
     FILE = "file"
     RTSP = "rtsp"
     HTTP = "http"
+    BROWSER = "browser"  # a câmera é do dispositivo que abre a interface
 
 
 class Settings(BaseSettings):

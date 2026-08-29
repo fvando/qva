@@ -106,13 +106,26 @@ h3 {
 .card.answer { border-color: var(--primary); }
 .card.error { border-color: var(--down); }
 
-#preview-img {
+#preview-img,
+#browser-video {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: contain;
   background: #000;
   border-radius: 10px;
   display: block;
+}
+
+button.ghost {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .switch {

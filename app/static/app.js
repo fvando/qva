@@ -1,4 +1,4 @@
-// Question Vision Assistant — interface mobile (TASK-011).
+// Question Vision Assistant — interface mobile (TASK-011 + câmera do browser).
 (function () {
   "use strict";
 
@@ -15,7 +15,9 @@
       var res = await fetch("/health");
       var body = await res.json();
       setDot("server", res.ok ? "ok" : "down");
-      setDot("camera", body.camera === true ? "ok" : body.camera === false ? "down" : "");
+      if (!browserMode) {
+        setDot("camera", body.camera === true ? "ok" : body.camera === false ? "down" : "");
+      }
       setDot("llm", body.llm === true ? "ok" : body.llm === false ? "down" : "");
     } catch (e) {
       setDot("server", "down");
@@ -24,16 +26,76 @@
   refreshHealth();
   setInterval(refreshHealth, 15000);
 
-  // -- Preview ---------------------------------------------------------
+  // -- Preview: imagem do servidor OU vídeo do dispositivo --------------
   var img = $("preview-img");
+  var video = $("browser-video");
   var live = $("live");
+  var browserMode = false;          // true = câmera deste dispositivo
+  var mediaStream = null;
+  var facingMode = "environment";   // câmera traseira por omissão
+
   function showSnapshot() { img.src = "/api/camera/frame?t=" + Date.now(); }
   function refreshPreview() {
+    if (browserMode) return;
     if (live.checked) img.src = "/api/camera/stream?t=" + Date.now();
     else showSnapshot();
   }
   live.addEventListener("change", refreshPreview);
-  showSnapshot();
+
+  async function startBrowserCamera() {
+    stopBrowserCamera();
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode } },
+        audio: false,
+      });
+    } catch (e) {
+      camMsg.dataset.kind = "error";
+      camMsg.textContent = "sem acesso à câmera do dispositivo: " + e.name;
+      setDot("camera", "down");
+      return false;
+    }
+    video.srcObject = mediaStream;
+    img.hidden = true;
+    video.hidden = false;
+    $("browser-switch").hidden = false;
+    live.parentElement.style.visibility = "hidden";
+    browserMode = true;
+    setDot("camera", "ok");
+    return true;
+  }
+
+  function stopBrowserCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(function (t) { t.stop(); });
+      mediaStream = null;
+    }
+    video.srcObject = null;
+    video.hidden = true;
+    img.hidden = false;
+    $("browser-switch").hidden = true;
+    live.parentElement.style.visibility = "";
+    browserMode = false;
+  }
+
+  $("browser-switch").addEventListener("click", function () {
+    facingMode = facingMode === "environment" ? "user" : "environment";
+    startBrowserCamera();
+  });
+
+  // Captura um frame do <video> como JPEG (Blob).
+  function grabVideoJpeg() {
+    return new Promise(function (resolve, reject) {
+      var w = video.videoWidth, h = video.videoHeight;
+      if (!w || !h) { reject(new Error("vídeo ainda sem imagem")); return; }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(video, 0, 0, w, h);
+      canvas.toBlob(function (blob) {
+        if (blob) resolve(blob); else reject(new Error("falha ao codificar frame"));
+      }, "image/jpeg", 0.9);
+    });
+  }
 
   // -- Escolha de câmera ------------------------------------------------
   var kindSel = $("camera-kind");
@@ -45,7 +107,7 @@
   function updatePickerFields() {
     var k = kindSel.value;
     usbSel.hidden = k !== "usb";
-    urlInput.hidden = k === "usb";
+    urlInput.hidden = k === "usb" || k === "browser";
   }
   kindSel.addEventListener("change", updatePickerFields);
 
@@ -65,9 +127,8 @@
         o.textContent = "Câmera 0 (padrão)";
         usbSel.appendChild(o);
       }
-      // reflete a câmera ativa
       var a = data.active || {};
-      if (a.type) {
+      if (a.type && a.type !== "browser") {
         kindSel.value = a.type === "file" ? "usb" : a.type;
         if (a.type === "usb") usbSel.value = a.target;
         else urlInput.value = a.target || "";
@@ -81,11 +142,30 @@
 
   applyBtn.addEventListener("click", async function () {
     var kind = kindSel.value;
-    var target = kind === "usb" ? usbSel.value : urlInput.value.trim();
     camMsg.dataset.kind = "";
-    camMsg.textContent = "a mudar de câmera…";
     applyBtn.disabled = true;
+
     try {
+      if (kind === "browser") {
+        camMsg.textContent = "a pedir acesso à câmera…";
+        var ok = await startBrowserCamera();
+        if (ok) {
+          // Diz ao servidor para usar a fonte 'browser' (frame vem por upload).
+          await fetch("/api/camera/select", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ kind: "browser", target: "" }),
+          });
+          camMsg.dataset.kind = "ok";
+          camMsg.textContent = "a usar a câmera deste dispositivo.";
+        }
+        return;
+      }
+
+      // Câmera do servidor (usb / rtsp / http)
+      stopBrowserCamera();
+      var target = kind === "usb" ? usbSel.value : urlInput.value.trim();
+      camMsg.textContent = "a mudar de câmera…";
       var r = await fetch("/api/camera/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,12 +253,10 @@
   function connectWS() {
     var proto = location.protocol === "https:" ? "wss:" : "ws:";
     var socket = new WebSocket(proto + "//" + location.host + "/ws");
-
     socket.onmessage = function (ev) {
       var msg = JSON.parse(ev.data);
       var event = msg.event;
       var data = msg.data || {};
-
       if (event === "capture_started") {
         resetCards();
         setState("capturing");
@@ -200,25 +278,32 @@
   }
   connectWS();
 
-  // Polling de fallback entre eventos intermédios (processing_image / solving),
-  // que o pipeline percorre depressa; garante feedback mesmo se um evento
-  // se perder.
   btn.addEventListener("click", async function () {
     resetCards();
     setState("capturing");
     try {
+      // No modo browser, envia primeiro o frame da câmera do dispositivo.
+      if (browserMode) {
+        var blob = await grabVideoJpeg();
+        var up = await fetch("/api/camera/upload-frame", {
+          method: "POST",
+          headers: { "Content-Type": "image/jpeg" },
+          body: blob,
+        });
+        if (!up.ok) throw new Error("falha ao enviar o frame");
+      }
       var r = await fetch("/api/capture", { method: "POST" });
       var capture_id = (await r.json()).capture_id;
       pollUntilDone(capture_id);
     } catch (e) {
       setState("error");
-      $("error-text").textContent = "Falha ao iniciar a captura.";
+      $("error-text").textContent = "Falha ao iniciar a captura: " + (e.message || e);
       show("error-card");
     }
   });
 
   async function pollUntilDone(id) {
-    for (var i = 0; i < 60; i++) {
+    for (var i = 0; i < 90; i++) {
       await new Promise(function (res) { setTimeout(res, 700); });
       var s;
       try {
@@ -244,5 +329,18 @@
     }
   }
 
+  // Se não há câmera no servidor, arranca já no modo browser.
+  (async function autoPickCamera() {
+    try {
+      var data = await (await fetch("/api/camera/devices")).json();
+      var active = (data.active || {}).type;
+      if (active === "browser" || !(data.devices || []).length) {
+        kindSel.value = "browser";
+        updatePickerFields();
+      }
+    } catch (e) { /* ignora */ }
+  })();
+
+  showSnapshot();
   setState("idle");
 })();

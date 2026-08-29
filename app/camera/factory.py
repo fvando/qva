@@ -7,6 +7,7 @@ que o resto da aplicação nunca faça `if camera_type == ...`.
 from __future__ import annotations
 
 from app.camera.base import CameraSource
+from app.camera.browser import BrowserCamera
 from app.camera.file_camera import FileCamera
 from app.camera.rtsp import HTTPIPCamera, RTSPCamera
 from app.camera.usb import USBCamera
@@ -22,6 +23,8 @@ def build_camera(settings: Settings) -> CameraSource:
         return RTSPCamera(url=settings.camera_url)
     if settings.camera_type is CameraType.HTTP:
         return HTTPIPCamera(url=settings.camera_url)
+    if settings.camera_type is CameraType.BROWSER:
+        return BrowserCamera()
     raise NotImplementedError(
         f"CAMERA_TYPE={settings.camera_type.value} não suportado"
     )

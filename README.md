@@ -17,6 +17,20 @@ Camera → ImageProcessor → QuestionExtractor → QuestionSolver → LLMClient
 Nenhum módulo conhece os detalhes internos dos outros — só as interfaces
 públicas. Trocar webcam USB por câmera IP (RTSP) não altera o pipeline.
 
+### Câmeras suportadas
+
+| Tipo | O que é |
+|---|---|
+| `usb` | webcam ligada ao servidor (o PC onde corre o Python) |
+| `browser` | **a câmera do dispositivo que abre a página** — o telemóvel captura e envia os frames; o servidor não abre câmera nenhuma |
+| `rtsp` | câmera IP por RTSP |
+| `http` | câmera IP, ou telemóvel com a app "IP Webcam", por HTTP-MJPEG |
+| `file` | imagem de disco (desenvolvimento) |
+
+Trocável na interface a qualquer momento. Para usar o telemóvel como câmera,
+escolhe **"Câmera deste dispositivo"** e permite o acesso — funciona sem
+instalar nada.
+
 ## Estrutura
 
 ```
@@ -88,7 +102,7 @@ Ver [`.env.example`](.env.example). Destaques:
 
 | Variável | Efeito |
 |---|---|
-| `CAMERA_TYPE` | câmera inicial: `usb` \| `file` \| `rtsp` \| `http` (na UI podes trocar em runtime) |
+| `CAMERA_TYPE` | câmera inicial: `usb` \| `browser` \| `rtsp` \| `http` \| `file` (na UI podes trocar em runtime) |
 | `TEST_IMAGE` | imagem usada por `CAMERA_TYPE=file` (dev sem webcam) |
 | `LLM_BASE_URL` / `LLM_ENDPOINT` / `LLM_MODEL` | serviço LLM local (agnóstico de fornecedor) |
 | `LLM_SUPPORTS_VISION` | `true` = modo A (imagem→modelo Vision); `false` = modo B (RapidOCR→texto→modelo, com extração+resolução numa só chamada) |

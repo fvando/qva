@@ -12,6 +12,7 @@ import logging
 import threading
 
 from app.camera.base import CameraError, CameraSource
+from app.camera.browser import BrowserCamera
 from app.camera.factory import build_camera
 from app.camera.file_camera import FileCamera
 from app.camera.rtsp import HTTPIPCamera, RTSPCamera
@@ -29,9 +30,19 @@ class CameraManager(CameraSource):
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._active: CameraSource = build_camera(settings)
         self._lock = threading.Lock()
+        # A câmera do browser tem estado (o último frame enviado) — instância
+        # única, reutilizada sempre que se voltar a `browser`.
+        self._browser = BrowserCamera()
+        if settings.camera_type is CameraType.BROWSER:
+            self._active: CameraSource = self._browser
+        else:
+            self._active = build_camera(settings)
         self._desc = _describe(settings.camera_type.value, _initial_target(settings))
+
+    @property
+    def browser_camera(self) -> BrowserCamera:
+        return self._browser
 
     # -- CameraSource: delega tudo na ativa ----------------------------
     def open(self) -> None:
@@ -52,9 +63,21 @@ class CameraManager(CameraSource):
         return dict(self._desc)
 
     def select(self, kind: str, target: str) -> dict:
-        """Troca a câmera ativa. `kind`: usb|file|rtsp|http. `target`: índice do
-        dispositivo (usb), caminho (file) ou URL (rtsp/http)."""
+        """Troca a câmera ativa. `kind`: usb|file|rtsp|http|browser.
+        `target`: índice do dispositivo (usb), caminho (file) ou URL (rtsp/http);
+        ignorado para `browser`."""
         kind = kind.lower().strip()
+
+        if kind == "browser":
+            with self._lock:
+                old = self._active
+                self._active = self._browser
+                self._desc = _describe("browser", "")
+            if old is not self._browser:
+                _safe_close(old)
+            logger.info("CAMERA_SELECTED", extra={"model": "browser"})
+            return self.description
+
         new = _build(kind, target, self._settings)
 
         # Valida antes de assumir — não queremos ficar sem câmera se falhar.
@@ -66,10 +89,8 @@ class CameraManager(CameraSource):
             old = self._active
             self._active = new
             self._desc = _describe(kind, target)
-        try:
-            old.close()
-        except Exception:  # noqa: BLE001
-            pass
+        if old is not self._browser:
+            _safe_close(old)
         logger.info("CAMERA_SELECTED", extra={"model": f"{kind}:{target}"})
         return self.description
 
@@ -95,6 +116,13 @@ class CameraManager(CameraSource):
             for i, be in enumerate(backends)
             if be is not None
         ]
+
+
+def _safe_close(cam: CameraSource) -> None:
+    try:
+        cam.close()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _initial_target(settings: Settings) -> str:

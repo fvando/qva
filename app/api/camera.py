@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -34,7 +34,11 @@ async def camera_status(
 async def camera_devices(
     manager: CameraManager = Depends(get_camera_manager),
 ) -> dict:
-    """Lista as câmeras disponíveis (sonda USB 0-4) e a que está ativa."""
+    """Lista as câmeras disponíveis no servidor e a que está ativa.
+
+    A opção "câmera deste dispositivo" (browser) é sempre possível e não
+    aparece aqui — a UI adiciona-a.
+    """
     devices = await asyncio.to_thread(manager.list_devices)
     return {"active": manager.description, "devices": devices}
 
@@ -56,6 +60,30 @@ async def camera_select(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
     return {"active": desc}
+
+
+@router.post("/upload-frame")
+async def upload_frame(
+    request: Request,
+    manager: CameraManager = Depends(get_camera_manager),
+) -> dict:
+    """Recebe um JPEG capturado pela câmera do browser (`CAMERA_TYPE=browser`).
+
+    O corpo é o JPEG binário (Content-Type image/jpeg). O frame fica disponível
+    para o próximo `POST /api/capture`.
+    """
+    data = await request.body()
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="corpo vazio"
+        )
+    try:
+        await asyncio.to_thread(manager.browser_camera.set_frame_jpeg, data)
+    except CameraError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    return {"bytes": len(data)}
 
 
 async def _grab_jpeg(camera: CameraSource) -> bytes:

@@ -27,16 +27,19 @@
           </label>
         </div>
         <img id="preview-img" alt="preview da câmera" />
+        <video id="browser-video" playsinline autoplay muted hidden></video>
         <div class="camera-picker">
           <select id="camera-kind">
-            <option value="usb">USB / interna</option>
-            <option value="rtsp">Wi-Fi (RTSP)</option>
-            <option value="http">Wi-Fi (HTTP/MJPEG)</option>
+            <option value="browser">Câmera deste dispositivo</option>
+            <option value="usb">Câmera do servidor (USB / interna)</option>
+            <option value="rtsp">Câmera Wi-Fi (RTSP)</option>
+            <option value="http">Câmera Wi-Fi (HTTP/MJPEG)</option>
           </select>
           <select id="camera-usb" hidden></select>
           <input id="camera-url" type="text" placeholder="rtsp://utilizador:pass@ip:554/stream" hidden />
           <button id="camera-apply" type="button">Usar</button>
         </div>
+        <button id="browser-switch" class="ghost" type="button" hidden>Alternar câmera (frente/trás)</button>
         <p id="camera-msg" class="camera-msg"></p>
       </section>
 

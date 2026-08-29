@@ -98,6 +98,9 @@ class FakeCameraManager(FakeCamera):
     def __init__(self) -> None:
         super().__init__()
         self._desc = {"type": "usb", "target": "0"}
+        from app.camera.browser import BrowserCamera
+
+        self.browser_camera = BrowserCamera()
 
     @property
     def description(self) -> dict:
