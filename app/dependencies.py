@@ -77,10 +77,24 @@ def get_llm_client() -> LLMClient:
     return HttpLLMClient(get_settings())
 
 
+@lru_cache
+def get_ocr_engine():
+    """Motor de OCR único do processo (modo B). Carrega os modelos ONNX uma
+    vez — pré-aquecido no lifespan. `None` se nenhum motor disponível."""
+    from app.vision.ocr import OCRUnavailableError, build_ocr_engine
+
+    try:
+        return build_ocr_engine()
+    except OCRUnavailableError:
+        return None
+
+
 def get_question_extractor(
     llm: LLMClient = Depends(get_llm_client),
 ) -> QuestionExtractor:
-    return QuestionExtractor(llm=llm, settings=get_settings())
+    return QuestionExtractor(
+        llm=llm, settings=get_settings(), ocr=get_ocr_engine()
+    )
 
 
 def get_solver(llm: LLMClient = Depends(get_llm_client)) -> QuestionSolver:
@@ -95,7 +109,9 @@ def build_pipeline() -> QuestionPipeline:
     return QuestionPipeline(
         camera=get_camera(),
         image_processor=get_image_processor(),
-        extractor=QuestionExtractor(llm=llm, settings=settings),
+        extractor=QuestionExtractor(
+            llm=llm, settings=settings, ocr=get_ocr_engine()
+        ),
         solver=QuestionSolver(llm=llm),
         registry=get_capture_registry(),
         websocket_manager=get_websocket_manager(),

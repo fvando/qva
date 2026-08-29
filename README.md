@@ -151,8 +151,8 @@ Testado ponta a ponta (`CAMERA_TYPE=file` + fixture) contra Ollama local em CPU:
 | Configuração | Latência/questão | Resultado |
 |---|---|---|
 | Modo A visão (`minicpm-v`, CPU) | ~2 min | correto |
-| Modo B, extração+resolução separadas (`qwen2.5:7b`) | ~48 s | correto |
-| **Modo B fundido (`qwen2.5:7b`)** | **~22 s** (modelo quente) | correto |
+| Modo B fundido (`qwen2.5:7b`) | ~22 s | correto, fiável |
+| **Modo B fundido (`llama3.2:3b`) + OCR pré-aquecido** | **~14 s** | correto p/ definições; fraco em cálculo |
 
 A meta de <5 s da spec pressupõe aceleração (GPU ou API cloud) — o
 `HttpLLMClient` é agnóstico, basta trocar `LLM_BASE_URL`/`LLM_API_KEY`.

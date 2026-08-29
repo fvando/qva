@@ -29,9 +29,23 @@ from app.services.auto_capture import AutoCaptureLoop
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
+async def _warm_ocr(settings) -> None:
+    """Pré-carrega o motor de OCR no arranque (modo B), para a primeira captura
+    não pagar o carregamento dos modelos ONNX (~5s)."""
+    if settings.llm_supports_vision:
+        return
+    import asyncio
+
+    from app.dependencies import get_ocr_engine
+
+    await asyncio.to_thread(get_ocr_engine)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+
+    await _warm_ocr(settings)
 
     auto_loop: AutoCaptureLoop | None = None
     if settings.auto_capture_enabled:
