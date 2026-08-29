@@ -305,7 +305,9 @@
     $("answer-line").textContent = letter ? letter + ")" + text : text.trim() || "—";
     $("confidence").textContent =
       r.confidence != null ? "Confiança: " + Math.round(r.confidence * 100) + "%" : "";
-    $("explanation").textContent = r.explanation || "";
+    var expEl = $("explanation");
+    if (window.renderMarkdown) expEl.innerHTML = window.renderMarkdown(r.explanation || "");
+    else expEl.textContent = r.explanation || "";
     $("ambiguous").hidden = !r.ambiguous;
     if (timing) {
       $("timing").textContent = "Total: " + Math.round(timing.total_ms) + " ms " +

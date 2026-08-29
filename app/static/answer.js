@@ -68,7 +68,9 @@
       ul.appendChild(li);
     });
 
-    el.querySelector(".msg-expl").textContent = r.explanation || "";
+    var expEl = el.querySelector(".msg-expl");
+    if (window.renderMarkdown) expEl.innerHTML = window.renderMarkdown(r.explanation || "");
+    else expEl.textContent = r.explanation || "";
     el.querySelector(".msg-time").textContent =
       nowLabel() + (t.total_ms ? " · " + Math.round(t.total_ms / 1000) + "s" : "");
     append(el);

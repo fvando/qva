@@ -7,6 +7,17 @@ fundidas numa só chamada — ver `COMBINED_SYSTEM` / `build_combined_user`.
 
 from __future__ import annotations
 
+# Regras de formatação do campo "explanation" — reutilizadas nos prompts.
+_EXPLANATION_FORMAT = """O campo "explanation" deve ser uma string em Markdown \
+(o valor JSON continua a ser uma string — sem blocos ``` à volta do JSON \
+inteiro). Usa, quando ajudar:
+- **negrito** para a conclusão e passos-chave;
+- listas com "- " para passos;
+- `código` para expressões/variáveis (ex: `F = A'·B + C·D`, `x_{k+1}`);
+- tabelas Markdown para mapas de Karnaugh e tabelas-verdade (colunas curtas);
+- blocos ``` para código ou pseudo-código com várias linhas.
+Sê conciso: só o essencial para justificar a resposta."""
+
 EXTRACTION_SYSTEM = """Você é um extrator de questões de estudo/simulado.
 
 A sua tarefa é APENAS transcrever e estruturar a questão. NÃO a resolva, NÃO \
@@ -39,7 +50,7 @@ EXTRACTION_USER = (
     "Não a resolva. Responda só com o JSON."
 )
 
-SOLVE_SYSTEM = """Você é um assistente educacional para resolução de questões \
+SOLVE_SYSTEM = f"""Você é um assistente educacional para resolução de questões \
 de estudo e simulados.
 
 Analise cuidadosamente a questão recebida.
@@ -47,22 +58,28 @@ Analise cuidadosamente a questão recebida.
 Para questões de múltipla escolha:
 1. resolva a questão;
 2. determine a alternativa mais adequada;
-3. explique resumidamente o motivo;
+3. explique o motivo (ver formato abaixo);
 4. estime a confiança (0.0 a 1.0);
 5. se houver ambiguidade, indique-a claramente.
 
+Para questões abertas / de cálculo / de projeto (ex: mapa de Karnaugh, \
+demonstração): resolve-a passo a passo em "explanation", deixa "answer" e \
+"answer_text" vazios.
+
 Não invente informação ausente.
 
-Responda EXCLUSIVAMENTE com JSON válido, sem markdown:
-{
+{_EXPLANATION_FORMAT}
+
+Responda EXCLUSIVAMENTE com UM objeto JSON válido, sem blocos ``` à volta:
+{{
   "answer": "B",
   "answer_text": "Pilha",
-  "explanation": "motivo resumido",
-  "confidence": 0.0,
+  "explanation": "**Pilha** — segue LIFO...\\n\\n| A | B | F |\\n|---|---|---|\\n| 0 | 0 | 1 |",
+  "confidence": 0.9,
   "ambiguous": false
-}
+}}
 
-Em "answer" ponha apenas a letra/rótulo da alternativa."""
+Em "answer" ponha apenas a letra/rótulo (ou "" se não for múltipla escolha)."""
 
 
 def build_solve_user(question_json: str) -> str:
@@ -75,35 +92,42 @@ def build_solve_user(question_json: str) -> str:
 # --------------------------------------------------------------------------
 # Modo B combinado: extrair + resolver numa só chamada (input já é texto OCR).
 # --------------------------------------------------------------------------
-COMBINED_SYSTEM = """Você é um assistente educacional. Recebe o TEXTO de uma \
-questão de estudo/simulado (obtido por OCR, pode ter pequenos erros).
+COMBINED_SYSTEM = f"""Você é um assistente educacional. Recebe uma questão de \
+estudo/simulado (texto de OCR, ou uma/mais imagens).
 
 Numa só resposta: estruture a questão E resolva-a.
 
 Regras:
-- "options": objeto {letra: texto}. Ex: {"A": "Fila", "B": "Pilha"}. Sem \
-alternativas -> {}.
-- "answer": apenas a letra da alternativa correta.
+- "options": objeto {{letra: texto}}. Ex: {{"A": "Fila", "B": "Pilha"}}. Sem \
+alternativas -> {{}}.
+- "answer": apenas a letra da alternativa correta, ou "" se não for múltipla \
+escolha.
 - "type": multiple_choice | true_false | open_question | code_question | \
 math_question | unknown.
+- Se a questão ocupar várias imagens, junta tudo numa só questão.
 
-Responda EXCLUSIVAMENTE com UM objeto JSON plano, sem markdown, sem texto \
-antes ou depois:
-{
+{_EXPLANATION_FORMAT}
+
+Responda EXCLUSIVAMENTE com UM objeto JSON plano, sem blocos ``` à volta, sem \
+texto antes ou depois:
+{{
   "type": "multiple_choice",
   "language": "pt",
   "question": "enunciado transcrito",
-  "options": {"A": "...", "B": "..."},
+  "options": {{"A": "...", "B": "..."}},
   "code": null,
   "formulas": null,
   "has_image": false,
   "answer": "B",
   "answer_text": "Pilha",
-  "explanation": "motivo resumido",
+  "explanation": "**Pilha** — segue LIFO...",
   "confidence": 0.9,
   "ambiguous": false
-}"""
+}}"""
 
 
 def build_combined_user(ocr_text: str) -> str:
-    return f"Texto reconhecido da questão:\n\n{ocr_text}\n\nResponda só com o JSON plano."
+    return (
+        f"Texto reconhecido da questão:\n\n{ocr_text}\n\n"
+        "Responda só com o JSON plano."
+    )

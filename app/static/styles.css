@@ -360,6 +360,69 @@ button.primary:disabled {
   margin-top: 0.75rem;
 }
 
+/* -- Markdown renderizado nas explicações ---------------------- */
+#explanation,
+.msg-expl {
+  overflow-wrap: anywhere;
+}
+#explanation h3, #explanation h4, #explanation h5,
+.msg-expl h3, .msg-expl h4, .msg-expl h5 {
+  font-size: 0.9rem;
+  margin: 0.7rem 0 0.3rem;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+#explanation p, .msg-expl p { margin: 0.4rem 0; }
+#explanation ul, #explanation ol,
+.msg-expl ul, .msg-expl ol { margin: 0.4rem 0; padding-left: 1.2rem; }
+#explanation li, .msg-expl li { margin: 0.15rem 0; }
+
+#explanation code, .msg-expl code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-size: 0.88em;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+#explanation pre, .msg-expl pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+#explanation pre code, .msg-expl pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.82rem;
+  white-space: pre;
+}
+
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+.md-table-wrap table {
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.md-table-wrap th,
+.md-table-wrap td {
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.55rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.md-table-wrap th {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
 [hidden] { display: none !important; }
 
 /* ==================================================================
