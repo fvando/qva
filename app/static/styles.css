@@ -340,7 +340,15 @@ body.answer-only .confidence {
   background: transparent;
   padding: 0;
 }
-.dot[data-service="link"] { background: var(--muted); }
+
+/* em ecrã largo (a app vive no telemóvel, mas fica decente no PC também) */
+@media (min-width: 48rem) {
+  body.answer-only {
+    max-width: 34rem;
+    border-inline: 1px solid var(--border);
+    min-height: 100vh;
+  }
+}
 
 /* -- Ecrãs maiores: coluna única, mais larga e com o preview
    contido para não dominar a página. -------------------------- */
