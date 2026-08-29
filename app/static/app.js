@@ -26,6 +26,43 @@
   refreshHealth();
   setInterval(refreshHealth, 15000);
 
+  // -- Seletor de modelo LLM ------------------------------------------
+  var modelSelect = $("model-select");
+  async function loadModels() {
+    try {
+      var data = await (await fetch("/api/llm/models")).json();
+      modelSelect.innerHTML = "";
+      (data.models || []).forEach(function (m) {
+        var o = document.createElement("option");
+        o.value = m;
+        o.textContent = m;
+        modelSelect.appendChild(o);
+      });
+      if (data.active) modelSelect.value = data.active;
+      modelSelect.disabled = (data.models || []).length < 2;
+    } catch (e) {
+      modelSelect.disabled = true;
+    }
+  }
+  loadModels();
+
+  modelSelect.addEventListener("change", async function () {
+    var prev = modelSelect.value;
+    modelSelect.disabled = true;
+    try {
+      var r = await fetch("/api/llm/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelSelect.value }),
+      });
+      if (!r.ok) { modelSelect.value = prev; }
+    } catch (e) {
+      modelSelect.value = prev;
+    } finally {
+      modelSelect.disabled = false;
+    }
+  });
+
   // -- Preview: imagem do servidor OU vídeo do dispositivo --------------
   var img = $("preview-img");
   var video = $("browser-video");

@@ -160,3 +160,6 @@ Em CPU, ~20 s/questão é o realista.
 
 OCR: `rapidocr-onnxruntime` (ONNX, sem binário externo). Fallback para
 `pytesseract` se instalado.
+
+O modelo é trocável na interface (seletor no cabeçalho). `LLM_MODELS_ALLOWED`
+no `.env` limita a lista oferecida.

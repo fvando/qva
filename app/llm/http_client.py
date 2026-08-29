@@ -25,9 +25,32 @@ logger = logging.getLogger(__name__)
 class HttpLLMClient(LLMClient):
     def __init__(self, settings: Settings, client: httpx.AsyncClient | None = None) -> None:
         self._settings = settings
+        # Modelo ativo — começa no do `.env`, pode ser trocado na UI em runtime.
+        self._model = settings.llm_model
         # Permite injetar um cliente nos testes (httpx.MockTransport).
         self._client = client
         self._owns_client = client is None
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def set_model(self, model: str) -> None:
+        self._model = model
+
+    async def list_models(self) -> list[str]:
+        """Modelos disponíveis no serviço (via `/api/tags` do Ollama).
+
+        Devolve `[]` se o serviço não expõe essa rota (não é Ollama)."""
+        base = self._settings.llm_base_url.rstrip("/")
+        try:
+            resp = await self._get_client().get(f"{base}/api/tags", timeout=5.0)
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+        except (httpx.HTTPError, ValueError):
+            return []
+        return sorted(m.get("name", "") for m in data.get("models", []) if m.get("name"))
 
     # -- ciclo de vida do cliente httpx -----------------------------------
     def _get_client(self) -> httpx.AsyncClient:
@@ -68,7 +91,7 @@ class HttpLLMClient(LLMClient):
 
     def _build_payload(self, request: LLMRequest) -> dict:
         return {
-            "model": self._settings.llm_model,
+            "model": self._model,
             "messages": self._build_messages(request),
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
@@ -107,7 +130,7 @@ class HttpLLMClient(LLMClient):
         t0 = time.perf_counter()
 
         logger.info(
-            "LLM_REQUEST_STARTED", extra={"model": self._settings.llm_model}
+            "LLM_REQUEST_STARTED", extra={"model": self._model}
         )
         try:
             resp = await self._get_client().post(
@@ -137,11 +160,11 @@ class HttpLLMClient(LLMClient):
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info(
             "LLM_REQUEST_COMPLETED",
-            extra={"model": self._settings.llm_model, "latency_ms": round(latency_ms, 1)},
+            extra={"model": self._model, "latency_ms": round(latency_ms, 1)},
         )
         return LLMResponse(
             text=text,
-            model=data.get("model", self._settings.llm_model),
+            model=data.get("model", self._model),
             latency_ms=latency_ms,
             raw=data,
         )

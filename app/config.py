@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_timeout_seconds: float = 30.0
     llm_supports_vision: bool = True
+    llm_models_allowed: str = ""
+    """Lista separada por vírgulas dos modelos que a UI oferece no seletor.
+    Vazio = oferece todos os que o serviço expõe."""
     """Se o modelo local aceita imagens. O código de negócio não deve depender
     disto — a escolha entre modo multimodal e OCR+LLM é interna ao extractor."""
 
