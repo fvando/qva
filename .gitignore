@@ -1,0 +1,30 @@
+# Ambiente
+.env
+
+# Certificados TLS gerados localmente
+certs/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local-first: nunca versionar imagens capturadas
+captures/
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+!tests/fixtures/**
+!app/static/*.png
+scratch_*.jpg
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Túnel Cloudflare (binário descarregado localmente)
+cloudflared.exe

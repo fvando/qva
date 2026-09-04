@@ -1,0 +1,74 @@
+# Question Vision Assistant — stack completa.
+#
+# Perfis (docker compose --profile <nome> up):
+#   (nenhum)  só o backend QVA. Usa um LLM externo (cloud ou Ollama noutro sítio),
+#             configurado no .env.
+#   ollama    + Ollama local (texto e/ou visão). Precisa de ~5 GB por modelo.
+#   tunnel    + cloudflared: expõe o QVA na Internet num URL https://…trycloudflare.com
+#             (útil quando o router isola dispositivos / acesso de outra rede).
+#
+# Exemplos:
+#   docker compose up -d --build
+#   docker compose --profile ollama up -d --build
+#   docker compose --profile ollama --profile tunnel up -d --build
+#
+# NOTA: webcam USB não é acessível de dentro de um container. Para USB, correr
+# o backend no host (`python -m app`). Em Docker usar CAMERA_TYPE=browser
+# (telemóvel envia os frames) ou rtsp/http (câmera IP).
+
+services:
+  qva:
+    build: .
+    image: qva-backend
+    container_name: qva-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # dentro da rede do compose, o Ollama (perfil ollama) é alcançável por nome
+      - LLM_VISION_BASE_URL=${LLM_VISION_BASE_URL:-}
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # certificados HTTPS gerados persistem entre recriações
+      - qva_certs:/app/certs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: qva-ollama
+    restart: unless-stopped
+    profiles: ["ollama"]
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - qva_ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # GPU (opcional): descomentar se a máquina tiver NVIDIA + nvidia-container-toolkit
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: qva-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --url http://qva:8080
+    depends_on:
+      - qva
+
+volumes:
+  qva_certs:
+  qva_ollama:

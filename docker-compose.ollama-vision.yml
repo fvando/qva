@@ -1,0 +1,40 @@
+# Segundo Ollama, isolado, só com um modelo de VISÃO para o Question Vision
+# Assistant. NÃO toca no Ollama que já corre (`ott-ollama`, porta 11434).
+#
+#   docker compose -f docker-compose.ollama-vision.yml up -d
+#   docker exec -it qva-ollama-vision ollama pull minicpm-v
+#
+# Depois, no `.env` do QVA:
+#   LLM_BASE_URL=http://localhost:11435
+#   LLM_MODEL=minicpm-v
+#   LLM_SUPPORTS_VISION=true
+#
+# Se o backend do QVA correr TAMBÉM em Docker, usar em vez disso:
+#   LLM_BASE_URL=http://qva-ollama-vision:11434   (mesma rede)
+#   ou http://host.docker.internal:11435
+
+services:
+  ollama-vision:
+    image: ollama/ollama:latest
+    container_name: qva-ollama-vision
+    restart: unless-stopped
+    ports:
+      - "11435:11434"          # host 11435 -> container 11434 (não colide com 11434)
+    volumes:
+      - qva_ollama_vision:/root/.ollama   # modelos deste Ollama, separados
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # --- GPU (opcional): descomentar se a máquina tiver NVIDIA + nvidia runtime ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  qva_ollama_vision:

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="QVA" />
+    <title>Question Vision Assistant</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Question Vision Assistant</h1>
+      <div id="status" class="status">
+        <span class="chip"><span class="dot" data-service="camera"></span> Câmera</span>
+        <span class="chip"><span class="dot" data-service="llm"></span> LLM</span>
+        <span class="chip"><span class="dot" data-service="server"></span> Servidor</span>
+      </div>
+      <div class="model-picker">
+        <label for="model-select">Modelo</label>
+        <select id="model-select"></select>
+        <span id="llm-badge" class="badge" hidden></span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card" id="preview-card">
+        <div class="card-head">
+          <h2>Preview</h2>
+          <label class="switch">
+            <input type="checkbox" id="live" /> ao vivo
+          </label>
+        </div>
+        <img id="preview-img" alt="preview da câmera" />
+        <video id="browser-video" playsinline autoplay muted hidden></video>
+        <button id="browser-switch" class="ghost" type="button" hidden>
+          Alternar câmera (frente / trás)
+        </button>
+        <div class="camera-picker">
+          <select id="camera-kind" aria-label="Tipo de câmera">
+            <option value="browser">Câmera deste dispositivo</option>
+            <option value="usb">Câmera do servidor (USB / interna)</option>
+            <option value="rtsp">Câmera Wi-Fi (RTSP)</option>
+            <option value="http">Câmera Wi-Fi (HTTP / MJPEG)</option>
+          </select>
+          <select id="camera-usb" aria-label="Dispositivo" hidden></select>
+          <input
+            id="camera-url"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            placeholder="rtsp://utilizador:pass@ip:554/stream"
+            hidden
+          />
+          <button id="camera-apply" type="button">Usar câmera</button>
+        </div>
+        <p id="camera-msg" class="camera-msg"></p>
+      </section>
+
+      <p id="state-banner" class="banner" data-state="idle">Pronto para capturar.</p>
+
+      <button id="capture" class="primary">Capturar nova questão</button>
+
+      <details id="multipage">
+        <summary>Questão em várias páginas</summary>
+        <p class="hint">
+          Captura cada página; ao terminar, carrega em Resolver. O modelo junta tudo.
+        </p>
+        <p id="page-count" class="page-count">0 páginas capturadas</p>
+        <div class="page-actions">
+          <button id="add-page" class="ghost" type="button">+ Adicionar página</button>
+          <button id="solve-pages" class="ghost" type="button" disabled>Resolver</button>
+          <button id="clear-pages" class="ghost" type="button" disabled>Limpar</button>
+        </div>
+      </details>
+
+      <div id="results">
+        <section class="card" id="question-card" hidden>
+          <div class="card-head">
+            <h2>Questão <span id="question-type" class="tag"></span></h2>
+          </div>
+          <p id="question-text"></p>
+          <ul id="question-options"></ul>
+        </section>
+
+        <section class="card answer" id="answer-card" hidden>
+          <div class="card-head">
+            <h2>Resposta sugerida</h2>
+            <span id="confidence" class="confidence"></span>
+          </div>
+          <p id="answer-line" class="answer-line"></p>
+          <div id="ambiguous" class="warn" hidden>⚠️ Resposta ambígua — ver explicação.</div>
+          <h3>Explicação</h3>
+          <p id="explanation"></p>
+          <p id="timing" class="timing"></p>
+          <button id="resend" class="ghost" type="button">Reenviar aos dispositivos de consulta</button>
+        </section>
+
+        <section class="card error" id="error-card" hidden>
+          <h2>Erro</h2>
+          <p id="error-text"></p>
+        </section>
+      </div>
+    </main>
+
+    <script src="/md.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="QVA · Respostas" />
+    <title>QVA — Respostas</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="answer-only">
+    <header>
+      <div class="answer-head">
+        <h1>Respostas</h1>
+        <span class="chip">
+          <span class="dot" data-service="link"></span>
+          <span id="link-text">a ligar…</span>
+        </span>
+      </div>
+    </header>
+
+    <main id="feed">
+      <p class="feed-empty" id="feed-empty">À espera da primeira questão…</p>
+    </main>
+
+    <template id="tpl-msg">
+      <article class="msg">
+        <div class="msg-head">
+          <span class="msg-answer"></span>
+          <span class="msg-conf"></span>
+        </div>
+        <p class="msg-question"></p>
+        <ul class="msg-options"></ul>
+        <p class="msg-expl"></p>
+        <time class="msg-time"></time>
+      </article>
+    </template>
+
+    <template id="tpl-error">
+      <article class="msg msg-err">
+        <div class="msg-head"><span class="msg-answer">Não resolvido</span></div>
+        <p class="msg-question"></p>
+        <time class="msg-time"></time>
+      </article>
+    </template>
+
+    <script src="/md.js"></script>
+    <script src="/answer.js"></script>
+  </body>
+</html>

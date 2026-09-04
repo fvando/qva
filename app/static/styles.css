@@ -1,0 +1,568 @@
+/* Question Vision Assistant — interface (TASK-011).
+   Mobile-first, responsivo, escuro por omissão com fallback claro. */
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #334155;
+  --primary: #2563eb;
+  --primary-press: #1d4ed8;
+  --ok: #22c55e;
+  --down: #ef4444;
+  --warn: #f59e0b;
+  --radius: 14px;
+  --touch: 44px; /* alvo mínimo de toque */
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* evita o zoom automático do iOS ao focar inputs */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding:
+    env(safe-area-inset-top)
+    max(0.9rem, env(safe-area-inset-right))
+    calc(1rem + env(safe-area-inset-bottom))
+    max(0.9rem, env(safe-area-inset-left));
+  max-width: 40rem;
+  margin-inline: auto;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* -- Cabeçalho ------------------------------------------------------- */
+header {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: 0.75rem 0 0.6rem;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0.9rem 0 0.25rem;
+}
+
+/* -- Semáforo de status ---------------------------------------------- */
+.status {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+.dot[data-state="ok"] { background: var(--ok); }
+.dot[data-state="down"] { background: var(--down); }
+
+/* -- Seletor de modelo -------------------------------------------- */
+.model-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.model-picker label {
+  flex: none;
+}
+.model-picker select {
+  flex: 1;
+  min-width: 0;
+  height: var(--touch);
+  padding: 0 0.6rem;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.badge {
+  flex: none;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge[data-kind="cloud"] {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* -- Cartões --------------------------------------------------------- */
+main {
+  padding-top: 0.75rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  margin: 0.7rem 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card.answer { border-color: var(--primary); }
+.card.error { border-color: var(--down); }
+
+/* -- Preview -------------------------------------------------------- */
+#preview-img,
+#browser-video {
+  width: 100%;
+  max-height: 40vh;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #000;
+  border-radius: 10px;
+  display: block;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-height: var(--touch);
+}
+.switch input {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* -- Escolha de câmera ------------------------------------------- */
+.camera-picker {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+.camera-picker select,
+.camera-picker input,
+.camera-picker button {
+  width: 100%;
+  height: var(--touch);
+  padding: 0 0.7rem;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.camera-picker button {
+  background: var(--primary);
+  color: #fff;
+  border: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.camera-picker button:active { background: var(--primary-press); }
+
+.camera-msg {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+  min-height: 1.2em;
+}
+.camera-msg[data-kind="error"] { color: var(--down); }
+.camera-msg[data-kind="ok"] { color: var(--ok); }
+
+button.ghost {
+  width: 100%;
+  min-height: var(--touch);
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+button.ghost:disabled { opacity: 0.4; cursor: default; }
+
+/* -- Questão multi-página ---------------------------------------- */
+#multipage {
+  margin: 0.6rem 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface);
+}
+#multipage summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+#multipage .hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+}
+.page-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0.4rem 0;
+}
+.page-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+.page-actions #add-page { grid-column: 1 / -1; }
+.page-actions button { margin-top: 0; }
+
+/* -- Banner de estado --------------------------------------------- */
+.banner {
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.banner[data-state="capturing"],
+.banner[data-state="processing_image"],
+.banner[data-state="extracting_question"],
+.banner[data-state="solving"] {
+  border-color: var(--primary);
+}
+.banner[data-state="completed"] { border-color: var(--ok); }
+.banner[data-state="error"] { border-color: var(--down); }
+
+/* -- Botão principal ------------------------------------------- */
+button.primary {
+  width: 100%;
+  min-height: 52px;
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.95rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+button.primary:active { background: var(--primary-press); }
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* -- Questão / resposta ----------------------------------------- */
+.tag,
+.confidence {
+  font-size: 0.72rem;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+#question-text,
+#explanation {
+  overflow-wrap: anywhere;
+}
+
+#question-options {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+#question-options li {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+#question-options li b { color: var(--text); }
+
+.answer-line {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.warn {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+
+.timing {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 0.75rem;
+}
+
+/* -- Markdown renderizado nas explicações ---------------------- */
+#explanation,
+.msg-expl {
+  overflow-wrap: anywhere;
+}
+#explanation h3, #explanation h4, #explanation h5,
+.msg-expl h3, .msg-expl h4, .msg-expl h5 {
+  font-size: 0.9rem;
+  margin: 0.7rem 0 0.3rem;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+#explanation p, .msg-expl p { margin: 0.4rem 0; }
+#explanation ul, #explanation ol,
+.msg-expl ul, .msg-expl ol { margin: 0.4rem 0; padding-left: 1.2rem; }
+#explanation li, .msg-expl li { margin: 0.15rem 0; }
+
+#explanation code, .msg-expl code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-size: 0.88em;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+#explanation pre, .msg-expl pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+#explanation pre code, .msg-expl pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.82rem;
+  white-space: pre;
+}
+
+.md-table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+.md-table-wrap table {
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.md-table-wrap th,
+.md-table-wrap td {
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.55rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.md-table-wrap th {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+[hidden] { display: none !important; }
+
+/* ==================================================================
+   App de consulta (/answer) — feed estilo chat
+   ================================================================== */
+body.answer-only {
+  max-width: 42rem;
+  min-height: 100vh;
+}
+
+.answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.answer-head h1 { margin: 0; }
+
+#feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+.feed-empty,
+.feed-pending {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}
+.feed-pending {
+  padding: 0.75rem 0;
+  color: var(--primary);
+}
+
+/* -- cada resposta é uma "mensagem" ---------------------------- */
+.msg {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+.msg.msg-err {
+  border-left-color: var(--down);
+}
+
+.msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+.msg-answer {
+  font-size: 1.25rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.msg-err .msg-answer {
+  font-size: 1rem;
+  color: var(--down);
+}
+.msg-conf {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.msg-question {
+  margin: 0.2rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.msg-options {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+.msg-options li {
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.msg-options li.is-answer {
+  color: var(--text);
+  font-weight: 600;
+}
+.msg-options li:not(.is-answer) {
+  color: var(--muted);
+}
+
+.msg-expl {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.msg-time {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 48rem) {
+  body.answer-only {
+    max-width: 36rem;
+    border-inline: 1px solid var(--border);
+  }
+}
+
+/* -- Ecrãs maiores: coluna única, mais larga e com o preview
+   contido para não dominar a página. -------------------------- */
+@media (min-width: 40rem) {
+  body { max-width: 42rem; }
+  #preview-img,
+  #browser-video { max-height: 22rem; }
+}
+
+/* -- Tema claro -------------------------------------------------- */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f8fafc;
+    --surface: #fff;
+    --surface-2: #eef2f7;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    color-scheme: light;
+  }
+}
+
+/* -- Menos animação para quem prefere ------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
